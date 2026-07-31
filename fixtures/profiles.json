@@ -18,6 +18,13 @@
     "irons-spells-n-spellbooks",
     "playeranimator"
   ],
+  "simply-swords": [
+    "architectury-api",
+    "fzzy-config",
+    "kotlin-for-forge",
+    "simply-swords",
+    "simply-tooltips"
+  ],
   "rustic-engineer": [
     "rustic-engineer"
   ]
