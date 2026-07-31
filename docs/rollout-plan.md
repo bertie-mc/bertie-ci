@@ -45,9 +45,9 @@ replace one another.
    jobs, and feed the built JAR artifact to separate production probes. No test command
    silently rebuilds the production artifact it was asked to verify.
 
-All 22 custom NeoForge mods compose shared build and runtime jobs. The organization-wide
-rollout target is `v3.4.1`, which aligns the production runtime with the pack's NeoForge
-21.1.233 pin and sources dependency profiles from a pinned canonical pack snapshot. Three physically client-only
+All 22 custom NeoForge mods and `bertie-pack` now use `v3.4.1`. That release aligns the
+production runtime with the pack's NeoForge 21.1.233 pin and sources dependency profiles
+from a pinned canonical pack snapshot. Three physically client-only
 projects omit the server job; common projects compose both. Dependency-bearing mods use
 the declarative `artifacts`, `create`, `fdlib`, `forbidden-arcanus`, `ftb-filters`, `irons-spells`,
 `immersive-armors`, `refined-storage`, `rustic-engineer`, and `simply-swords` profiles. Only the two projects that currently
