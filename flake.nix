@@ -38,7 +38,7 @@
         { config, pkgs, ... }:
         let
           package = pkgs.callPackage ./nix/package.nix {
-            inherit (inputs) bertiePack;
+            bertiePack = inputs.bertiePack.outPath;
           };
           app = {
             program = package;
@@ -58,19 +58,25 @@
 
           checks = {
             inherit package;
-            help = pkgs.runCommand "bertie-ci-help" { } ''
-              ${pkgs.lib.getExe package} --help > "$out"
-            '';
+            help =
+              pkgs.runCommand "bertie-ci-help"
+                {
+                  bertieCi = pkgs.lib.getExe package;
+                }
+                ''
+                  "$bertieCi" --help > "$out"
+                '';
             workflows =
               pkgs.runCommand "bertie-ci-workflows"
                 {
+                  source = self.outPath;
                   nativeBuildInputs = [
                     pkgs.action-validator
                     pkgs.actionlint
                   ];
                 }
                 ''
-                  cd ${self}
+                  cd "$source"
                   actionlint .github/workflows/*.yml
                   action-validator actions/*/action.yml .github/workflows/*.yml
                   touch "$out"

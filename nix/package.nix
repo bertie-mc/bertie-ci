@@ -86,9 +86,7 @@ python3Packages.buildPythonApplication {
   build-system = [ python3Packages.setuptools ];
 
   nativeCheckInputs = [ python3Packages.pytestCheckHook ];
-  preCheck = ''
-    export BERTIE_CI_FIXTURE_PACK=${bertiePack}
-  '';
+  env.BERTIE_CI_FIXTURE_PACK = bertiePack;
 
   __structuredAttrs = true;
   makeWrapperArgs = [
