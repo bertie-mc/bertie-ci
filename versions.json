@@ -1,0 +1,16 @@
+{
+  "minecraft": "1.21.1",
+  "neoforge": "21.1.217",
+  "java": "21",
+  "headlessmc": {
+    "version": "2.10.0",
+    "url": "https://github.com/headlesshq/headlessmc/releases/download/2.10.0/headlessmc-launcher-2.10.0.jar",
+    "hash": "sha256-Ur1QBvR4N3s4kwEdRYVil304xl6tbSsxCJvrTWFPE80="
+  },
+  "mc_runtime_test": {
+    "version": "4.5.1",
+    "url": "https://github.com/headlesshq/mc-runtime-test/releases/download/4.5.1/mc-runtime-test-1.21.1-4.5.1-neoforge-release.jar",
+    "hash": "sha256-QE5WZkVzBHDchz24jCjUg5lcm3u2mZpqKvljCkG/d3Q="
+  }
+}
+
