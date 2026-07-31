@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import Sequence
 
@@ -42,12 +43,38 @@ def build_mod(project: Path, java_home: Path) -> None:
 
 def run_gametests(
     project: Path, java_home: Path, work: Path, timeout_seconds: int
-) -> None:
+) -> int:
     work.mkdir(parents=True, exist_ok=True)
+    log = work / "gametest.log"
     run_gradle(
         project,
         java_home,
         ["runGameTestServer"],
-        log=work / "gametest.log",
+        log=log,
         timeout_seconds=timeout_seconds,
     )
+    return verify_gametest_log(log)
+
+
+def verify_gametest_log(log: Path) -> int:
+    text = log.read_text(encoding="utf-8", errors="replace")
+    fatal_signatures = (
+        "Failed to start the minecraft server",
+        "Mod loading failures have occurred",
+        "Crash report saved to:",
+    )
+    for signature in fatal_signatures:
+        if signature in text:
+            raise RuntimeError(
+                f"GameTest runtime failed before completion ({signature!r}); see {log}"
+            )
+
+    discovered = re.search(r"\b(\d+) tests are now running\b", text)
+    if discovered is None or int(discovered.group(1)) == 0:
+        raise RuntimeError(f"GameTest runtime did not discover any tests; see {log}")
+    count = int(discovered.group(1))
+
+    passed = re.search(r"\bAll (\d+) required tests passed\b", text)
+    if passed is None or "Game test server shutting down" not in text:
+        raise RuntimeError(f"GameTests did not complete successfully; see {log}")
+    return count

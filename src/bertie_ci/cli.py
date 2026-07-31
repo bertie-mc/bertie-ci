@@ -78,8 +78,11 @@ def _run_gametest(args: argparse.Namespace) -> None:
     project = _project(args)
     work = (args.work_dir or project / ".bertie-ci").resolve()
     java = load_java()
-    run_gametests(project, java.parent.parent, work, args.timeout)
-    print(f"NeoForge GameTests passed. Logs: {work / 'gametest.log'}", flush=True)
+    count = run_gametests(project, java.parent.parent, work, args.timeout)
+    print(
+        f"NeoForge GameTests passed: {count} test(s). Logs: {work / 'gametest.log'}",
+        flush=True,
+    )
 
 
 def _fixture_profiles(values: list[str]) -> list[str]:

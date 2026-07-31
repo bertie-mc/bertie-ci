@@ -19,7 +19,10 @@ nix run github:bertie-mc/bertie-ci#bertie-ci -- server --project .
 ```
 
 `build` uses the repository's Gradle wrapper and leaves the releaseable JAR in
-`build/libs`. `gametest` runs `runGameTestServer` in NeoForge's development runtime.
+`build/libs`. `gametest` runs `runGameTestServer` in NeoForge's development runtime
+and fails closed unless at least one test is discovered and the GameTest server reports a
+clean completion. This catches mod-loading crashes that Gradle can otherwise report as a
+successful task.
 The production commands consume an already-built JAR and run:
 
 - the HeadlessHQ `mc-runtime-test` client probe under Xvfb, which loads the real client,
