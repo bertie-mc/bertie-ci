@@ -12,7 +12,6 @@ from .instance import Instance
 from .process import run
 from .properties import write_properties
 
-
 _SERVER_TEST_SUCCESS = "CommandTest was successful."
 
 
