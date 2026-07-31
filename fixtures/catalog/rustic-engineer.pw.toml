@@ -1,0 +1,12 @@
+name = "Rustic Engineer"
+filename = "rustic_engineer-1.1.4-neoforge-1.21.1.jar"
+side = "both"
+
+[download]
+url = "https://cdn.modrinth.com/data/8KT9aVZC/versions/sSsuuNws/rustic_engineer-1.1.4-neoforge-1.21.1.jar"
+hash-format = "sha512"
+hash = "96bdcf07b53bf5e5100ecb9e4d396b92b2f85a87385d6a56d948f44c3d3c194f191d027280b99c1fabb68c9f58bdc9a4069fdfecee2387040f3a27957ec00449"
+
+[update.modrinth]
+mod-id = "8KT9aVZC"
+version = "sSsuuNws"

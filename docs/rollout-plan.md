@@ -2,8 +2,9 @@
 
 ## Decisions
 
-`bertie-ci` is the test product. CI-provider adapters only install Nix and invoke the
-same command that a developer runs locally. The runtime code stays in Python so process
+`bertie-ci` is the test product. Its build, GameTest, client, and server commands are
+independent operations. CI-provider adapters only install Nix and compose the same
+commands that a developer runs locally. The runtime code stays in Python so process
 management, timeouts, paths, and Windows-specific Gradle launching are not encoded in
 shell scripts.
 
@@ -26,8 +27,8 @@ other.
 
 ## Custom-mod rollout
 
-1. Use `bertie-tiers` as the pilot for `--sides both`. It has no required external
-   runtime mod, so failures exercise only the shared machinery.
+1. Use `bertie-tiers` as the pilot for separate client and server commands. It has no
+   required external runtime mod, so failures exercise only the shared machinery.
 2. Move the other self-contained mods to the reusable workflow in small batches. Use
    `client` for physically client-only mods and `both` for common mods.
 3. Add a generic fixture input before moving mods with required runtime dependencies.
@@ -38,8 +39,9 @@ other.
    loopback, and let packwiz-installer resolve the requested client or server side into
    the ephemeral runtime directory. Do not implement another CurseForge/Modrinth
    downloader in `bertie-ci`.
-5. Keep each mod's existing unit tests and Gradle GameTests in the build. The production
-   probe always tests the built JAR rather than Gradle source sets.
+5. Keep compilation and unit tests in `build`, run Gradle GameTests as a separate
+   development-runtime job, and feed the built JAR artifact to separate production
+   probes. No test command silently rebuilds the artifact it was asked to verify.
 
 The current inventory has three client-only projects and six projects with known hard
 runtime dependencies. Likely fixture profiles are combinations of Architectury + FTB
@@ -94,4 +96,3 @@ Before broad rollout:
 - the public workflow is tagged `v1`, and callers move from bootstrap `@main` to `@v1`;
 - dependency fixtures are hash-pinned and side-aware;
 - a full-pack run has a measured cold-cache and warm-cache duration.
-

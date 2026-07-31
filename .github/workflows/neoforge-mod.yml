@@ -1,27 +1,37 @@
-name: NeoForge mod runtime
+name: NeoForge mod checks
 
 on:
   workflow_call:
     inputs:
       sides:
-        description: Runtime sides to test (client, server, or both)
+        description: Production runtime sides to test (client, server, or both)
         required: false
         type: string
         default: both
-      tool-ref:
-        description: bertie-ci Git ref used by the local-first runner
+      gametest:
+        description: Run the mod's NeoForge development-runtime GameTests
+        required: false
+        type: boolean
+        default: false
+      fixture:
+        description: Comma-separated runtime dependency fixture profiles
         required: false
         type: string
-        default: main
+        default: ""
+      tool-ref:
+        description: bertie-ci Git ref used by the local-first commands
+        required: false
+        type: string
+        default: v2
 
 permissions:
   contents: read
 
 jobs:
-  runtime:
-    name: Runtime (${{ inputs.sides }})
+  build:
+    name: Build JAR
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - name: Checkout mod
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -29,30 +39,117 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
 
-      - name: Build and run Minecraft
-        env:
-          BERTIE_CI_CACHE_DIR: ${{ runner.temp }}/bertie-ci-cache
-        run: |
-          nix run "github:bertie-mc/bertie-ci/${{ inputs.tool-ref }}#bertie-ci" -- \
-            mod --project . --sides '${{ inputs.sides }}' \
-            --cache-dir "$BERTIE_CI_CACHE_DIR"
+      - name: Build
+        run: >-
+          nix run "github:bertie-mc/bertie-ci/${{ inputs.tool-ref }}#bertie-ci" --
+          build --project .
 
       - name: Upload built mod
-        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: mod-${{ github.repository_id }}-${{ github.sha }}
-          path: build/libs/*.jar
-          if-no-files-found: warn
+          path: |
+            build/libs/*.jar
+            !build/libs/*-sources.jar
+            !build/libs/*-javadoc.jar
+          if-no-files-found: error
           retention-days: 14
 
-      - name: Upload runtime logs
+  gametest:
+    name: NeoForge GameTests
+    if: inputs.gametest
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout mod
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+
+      - name: Run GameTests
+        run: >-
+          nix run "github:bertie-mc/bertie-ci/${{ inputs.tool-ref }}#bertie-ci" --
+          gametest --project .
+
+      - name: Upload GameTest log
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: minecraft-runtime-${{ github.repository_id }}-${{ github.sha }}
+          name: gametest-${{ github.repository_id }}-${{ github.sha }}
+          path: .bertie-ci/gametest.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  client:
+    name: Client world join
+    if: inputs.sides == 'client' || inputs.sides == 'both'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+
+      - name: Download built mod
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v8
+        with:
+          name: mod-${{ github.repository_id }}-${{ github.sha }}
+          path: .bertie-ci/artifact
+
+      - name: Join an integrated world
+        env:
+          BERTIE_CI_CACHE_DIR: ${{ runner.temp }}/bertie-ci-cache
+        run: >-
+          nix run "github:bertie-mc/bertie-ci/${{ inputs.tool-ref }}#bertie-ci" --
+          client --project . --artifact .bertie-ci/artifact
+          --fixture '${{ inputs.fixture }}'
+          --cache-dir "$BERTIE_CI_CACHE_DIR"
+
+      - name: Upload client logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: minecraft-client-${{ github.repository_id }}-${{ github.sha }}
           path: |
-            .bertie-ci/**/*.log
-            .bertie-ci/**/crash-reports/
+            .bertie-ci/client/**/*.log
+            .bertie-ci/client/**/crash-reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+  server:
+    name: Dedicated server
+    if: inputs.sides == 'server' || inputs.sides == 'both'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+
+      - name: Download built mod
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v8
+        with:
+          name: mod-${{ github.repository_id }}-${{ github.sha }}
+          path: .bertie-ci/artifact
+
+      - name: Reach dedicated-server readiness
+        env:
+          BERTIE_CI_CACHE_DIR: ${{ runner.temp }}/bertie-ci-cache
+        run: >-
+          nix run "github:bertie-mc/bertie-ci/${{ inputs.tool-ref }}#bertie-ci" --
+          server --project . --artifact .bertie-ci/artifact
+          --fixture '${{ inputs.fixture }}'
+          --cache-dir "$BERTIE_CI_CACHE_DIR"
+
+      - name: Upload server logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: minecraft-server-${{ github.repository_id }}-${{ github.sha }}
+          path: |
+            .bertie-ci/server/**/*.log
+            .bertie-ci/server/**/crash-reports/
           if-no-files-found: warn
           retention-days: 14

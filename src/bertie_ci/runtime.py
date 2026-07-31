@@ -1,54 +1,22 @@
 from __future__ import annotations
 
-import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
 from .config import Tools, Versions
 from .display import virtual_display
+from .fixture import install_fixtures
 from .process import run
 
 
 @dataclass(frozen=True)
 class Context:
-    project: Path
     work: Path
     cache: Path
     artifact: Path
     versions: Versions
     tools: Tools
-
-
-def build_mod(project: Path, java_home: Path) -> None:
-    wrapper = project / ("gradlew.bat" if os.name == "nt" else "gradlew")
-    if not wrapper.is_file():
-        raise RuntimeError(f"Gradle wrapper not found in {project}")
-    command: list[str | Path] = [wrapper, "build", "--no-daemon", "--stacktrace"]
-    if os.name != "nt":
-        command.insert(0, os.environ.get("BERTIE_CI_SHELL", "sh"))
-    run(command, cwd=project, env={**os.environ, "JAVA_HOME": os.fspath(java_home)})
-
-
-def find_artifact(project: Path, requested: Path | None) -> Path:
-    if requested is not None:
-        path = requested if requested.is_absolute() else project / requested
-        path = path.resolve(strict=True)
-        if not path.is_file():
-            raise RuntimeError(f"Artifact is not a file: {path}")
-        return path
-
-    artifacts = sorted(
-        path
-        for path in (project / "build" / "libs").glob("*.jar")
-        if not path.name.endswith(("-sources.jar", "-javadoc.jar"))
-    )
-    if len(artifacts) != 1:
-        raise RuntimeError(
-            f"Expected one runtime JAR in {project / 'build' / 'libs'}, found {len(artifacts)}; "
-            "use --artifact"
-        )
-    return artifacts[0].resolve(strict=True)
 
 
 def _reset_runtime(work: Path, name: str) -> Path:
@@ -107,10 +75,15 @@ def _install_client(context: Context, runtime: Path, minecraft: Path) -> None:
         )
 
 
-def run_client(context: Context, timeout_seconds: int) -> None:
+def run_client(
+    context: Context, fixture_profiles: list[str], timeout_seconds: int
+) -> None:
     runtime = _reset_runtime(context.work, "client")
     minecraft = (context.cache / "minecraft").resolve()
     minecraft.mkdir(parents=True, exist_ok=True)
+    install_fixtures(
+        context.tools, context.versions, runtime, fixture_profiles, "client"
+    )
     shutil.copy2(context.artifact, runtime / "run" / "mods" / "mod-under-test.jar")
     shutil.copy2(
         context.tools.mc_runtime_test, runtime / "run" / "mods" / "mc-runtime-test.jar"
@@ -159,10 +132,15 @@ def run_client(context: Context, timeout_seconds: int) -> None:
     print(f"Client world-join probe passed. Logs: {runtime}", flush=True)
 
 
-def run_server(context: Context, timeout_seconds: int) -> None:
+def run_server(
+    context: Context, fixture_profiles: list[str], timeout_seconds: int
+) -> None:
     runtime = _reset_runtime(context.work, "server")
     minecraft = (context.cache / "minecraft").resolve()
     minecraft.mkdir(parents=True, exist_ok=True)
+    install_fixtures(
+        context.tools, context.versions, runtime, fixture_profiles, "server"
+    )
     shutil.copy2(context.artifact, runtime / "run" / "mods" / "mod-under-test.jar")
 
     _write(

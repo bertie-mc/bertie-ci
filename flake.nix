@@ -24,6 +24,9 @@
           mcRuntimeTest = pkgs.fetchurl {
             inherit (versions.mc_runtime_test) url hash;
           };
+          packwizInstaller = pkgs.fetchurl {
+            inherit (versions.packwiz_installer) url hash;
+          };
           bertie-ci = pkgs.python3Packages.buildPythonApplication {
             pname = "bertie-ci";
             version = "0.1.0";
@@ -43,13 +46,15 @@
                     pkgs.xorg-server
                   ]
                 } \
-                --set BERTIE_CI_SHELL ${pkgs.bash}/bin/sh \
-                --set BERTIE_CI_VERSIONS ${./versions.json} \
-                --set BERTIE_CI_HEADLESSMC_JAR ${headlessmc} \
-                --set BERTIE_CI_MCRT_JAR ${mcRuntimeTest} \
-                --set BERTIE_CI_JAVA_HOME ${pkgs.jdk21_headless} \
-                --set BERTIE_CI_XVFB ${pkgs.xorg-server}/bin/Xvfb \
-                --set BERTIE_CI_GLXINFO ${pkgs.mesa-demos}/bin/glxinfo \
+                --set-default BERTIE_CI_SHELL ${pkgs.bash}/bin/sh \
+                --set-default BERTIE_CI_VERSIONS ${./versions.json} \
+                --set-default BERTIE_CI_HEADLESSMC_JAR ${headlessmc} \
+                --set-default BERTIE_CI_MCRT_JAR ${mcRuntimeTest} \
+                --set-default BERTIE_CI_PACKWIZ_INSTALLER_JAR ${packwizInstaller} \
+                --set-default BERTIE_CI_FIXTURES ${./fixtures} \
+                --set-default BERTIE_CI_JAVA_HOME ${pkgs.jdk21_headless} \
+                --set-default BERTIE_CI_XVFB ${pkgs.xorg-server}/bin/Xvfb \
+                --set-default BERTIE_CI_GLXINFO ${pkgs.mesa-demos}/bin/glxinfo \
                 --set LIBGL_DRIVERS_PATH ${pkgs.mesa}/lib/dri \
                 --set XORG_MODULE_PATH ${pkgs.xorg-server}/lib/xorg/modules \
                 --prefix LD_LIBRARY_PATH : ${

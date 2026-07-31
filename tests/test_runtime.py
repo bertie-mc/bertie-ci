@@ -2,7 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from bertie_ci.runtime import _reset_runtime, find_artifact
+from bertie_ci.artifact import find_artifact
+from bertie_ci.runtime import _reset_runtime
 
 
 def test_find_artifact_ignores_documentation_jars(tmp_path: Path) -> None:
@@ -24,6 +25,15 @@ def test_find_artifact_rejects_ambiguous_output(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="Expected one runtime JAR"):
         find_artifact(tmp_path, None)
+
+
+def test_find_artifact_accepts_download_directory(tmp_path: Path) -> None:
+    downloads = tmp_path / "download"
+    downloads.mkdir()
+    runtime = downloads / "example.jar"
+    runtime.touch()
+
+    assert find_artifact(tmp_path, downloads) == runtime.resolve()
 
 
 def test_reset_runtime_only_replaces_selected_runtime(tmp_path: Path) -> None:

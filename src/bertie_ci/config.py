@@ -14,6 +14,7 @@ class Versions:
     java: str
     headlessmc: str
     mc_runtime_test: str
+    packwiz_installer: str
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,8 @@ class Tools:
     java: Path
     headlessmc: Path
     mc_runtime_test: Path
+    packwiz_installer: Path
+    fixtures: Path
     xvfb: Path | None
     glxinfo: Path | None
 
@@ -40,31 +43,48 @@ def load_versions() -> Versions:
         java=data["java"],
         headlessmc=data["headlessmc"]["version"],
         mc_runtime_test=data["mc_runtime_test"]["version"],
+        packwiz_installer=data["packwiz_installer"]["version"],
     )
 
 
-def load_tools() -> Tools:
+def load_java() -> Path:
     java_home = os.environ.get("BERTIE_CI_JAVA_HOME") or os.environ.get("JAVA_HOME")
     java_name = "java.exe" if os.name == "nt" else "java"
     if not java_home:
         raise RuntimeError(
             "Java 21 is unavailable; set JAVA_HOME or run through the Nix flake"
         )
+    java = Path(java_home) / "bin" / java_name
+    if not java.is_file():
+        raise RuntimeError(f"Java not found at {java}")
+    return java
 
+
+def load_tools() -> Tools:
     headlessmc = os.environ.get("BERTIE_CI_HEADLESSMC_JAR")
     runtime_test = os.environ.get("BERTIE_CI_MCRT_JAR")
-    if not headlessmc or not runtime_test:
+    packwiz_installer = os.environ.get("BERTIE_CI_PACKWIZ_INSTALLER_JAR")
+    if not headlessmc or not runtime_test or not packwiz_installer:
         raise RuntimeError(
-            "HeadlessHQ artifacts are unavailable; set BERTIE_CI_HEADLESSMC_JAR and "
-            "BERTIE_CI_MCRT_JAR or run through the Nix flake"
+            "Runtime artifacts are unavailable; set BERTIE_CI_HEADLESSMC_JAR, "
+            "BERTIE_CI_MCRT_JAR, and BERTIE_CI_PACKWIZ_INSTALLER_JAR or run through "
+            "the Nix flake"
         )
 
+    fixture_root = os.environ.get("BERTIE_CI_FIXTURES")
+    fixtures = (
+        Path(fixture_root)
+        if fixture_root
+        else Path(__file__).resolve().parents[2] / "fixtures"
+    )
     xvfb = os.environ.get("BERTIE_CI_XVFB")
     glxinfo = os.environ.get("BERTIE_CI_GLXINFO")
     tools = Tools(
-        java=Path(java_home) / "bin" / java_name,
+        java=load_java(),
         headlessmc=Path(headlessmc),
         mc_runtime_test=Path(runtime_test),
+        packwiz_installer=Path(packwiz_installer),
+        fixtures=fixtures,
         xvfb=Path(xvfb) if xvfb else None,
         glxinfo=Path(glxinfo) if glxinfo else None,
     )
@@ -72,9 +92,12 @@ def load_tools() -> Tools:
         ("Java", tools.java),
         ("HeadlessMC", tools.headlessmc),
         ("mc-runtime-test", tools.mc_runtime_test),
+        ("packwiz-installer", tools.packwiz_installer),
         ("Xvfb", tools.xvfb),
         ("glxinfo", tools.glxinfo),
     ):
         if path is not None and not path.is_file():
             raise RuntimeError(f"{name} not found at {path}")
+    if not tools.fixtures.is_dir():
+        raise RuntimeError(f"Fixture catalog not found at {tools.fixtures}")
     return tools
