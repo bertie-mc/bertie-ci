@@ -10,7 +10,9 @@ them.
 
 ## Run locally
 
-From a custom mod checkout, build once and run whichever checks apply:
+From a custom mod checkout, build once and run whichever checks apply. These lines are the
+Linux path; on native Windows there is no usable Nix, so follow
+[`docs/windows.md`](docs/windows.md) instead.
 
 ```bash
 nix run github:bertie-mc/bertie-ci/v3.2.1#bertie-ci -- \
@@ -133,7 +135,10 @@ are CI-provider-independent and avoid POSIX-shell assumptions; Nix is the suppor
 dependency provider, while other platforms can supply Java, HeadlessHQ artifacts, and a
 display backend through environment variables. On Linux, the Python runner starts and
 supervises Xvfb directly; it does not depend on a distribution-specific `xvfb-run` shell
-helper.
+helper. On Windows the runner invokes `gradlew.bat` directly rather than through a shell,
+and every check runs natively without WSL; [`docs/windows.md`](docs/windows.md) covers the
+setup and the one behavioral difference, which is that `client` has no Xvfb equivalent and
+therefore occupies the desktop session it runs on.
 
 ## GameTests are a separate layer
 

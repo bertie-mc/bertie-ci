@@ -2,3 +2,8 @@
 __pycache__/
 *.py[cod]
 result
+
+# Local Python scratch. Nix owns dependency pinning, so uv.lock is not tracked.
+.venv/
+*.egg-info/
+uv.lock
