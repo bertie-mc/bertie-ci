@@ -43,10 +43,11 @@ other.
    development-runtime job, and feed the built JAR artifact to separate production
    probes. No test command silently rebuilds the artifact it was asked to verify.
 
-The current inventory has three client-only projects and six projects with known hard
-runtime dependencies. Likely fixture profiles are combinations of Architectury + FTB
-Filter System, Iron's Spells, FDLib, Forbidden & Arcanus, and Rustic Engineer. These are
-profiles in data, not special cases in Python or workflow YAML.
+All 20 custom NeoForge mods now call the shared `v2` workflow. Three physically
+client-only projects select `client`; common projects select `both`. Dependency-bearing
+mods compose the declarative `fdlib`, `forbidden-arcanus`, `ftb-filters`, `irons-spells`,
+`rustic-engineer`, and `simply-swords` profiles. Only the two projects that currently
+contain registered GameTests enable the separate GameTest job.
 
 ## Modpack strategy
 
@@ -93,6 +94,11 @@ Before broad rollout:
 - the shared flake check is green on GitHub;
 - the `bertie-tiers` local and hosted client/server probes are green;
 - failures point at retained logs and crash reports;
-- the public workflow is tagged `v1`, and callers move from bootstrap `@main` to `@v1`;
+- the public workflow is tagged `v2`, and callers use that immutable tag rather than
+  bootstrap `@main`;
 - dependency fixtures are hash-pinned and side-aware;
 - a full-pack run has a measured cold-cache and warm-cache duration.
+
+The first five gates are complete. Full-pack timing and rollout remain the next phase;
+the earlier title-menu experiment is not the baseline because a UI onboarding screen
+blocked it without proving whether an integrated world could load.

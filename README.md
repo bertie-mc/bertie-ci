@@ -12,10 +12,10 @@ CI provider. GitHub Actions is only one adapter around them.
 From a custom mod checkout, build once and run whichever checks apply:
 
 ```bash
-nix run github:bertie-mc/bertie-ci#bertie-ci -- build --project .
-nix run github:bertie-mc/bertie-ci#bertie-ci -- gametest --project .
-nix run github:bertie-mc/bertie-ci#bertie-ci -- client --project .
-nix run github:bertie-mc/bertie-ci#bertie-ci -- server --project .
+nix run github:bertie-mc/bertie-ci/v2#bertie-ci -- build --project .
+nix run github:bertie-mc/bertie-ci/v2#bertie-ci -- gametest --project .
+nix run github:bertie-mc/bertie-ci/v2#bertie-ci -- client --project .
+nix run github:bertie-mc/bertie-ci/v2#bertie-ci -- server --project .
 ```
 
 `build` uses the repository's Gradle wrapper and leaves the releaseable JAR in
@@ -39,7 +39,7 @@ Mods with external runtime dependencies select one or more declarative packwiz f
 profiles. For example:
 
 ```bash
-nix run github:bertie-mc/bertie-ci#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v2#bertie-ci -- \
   client --project . --fixture forbidden-arcanus,irons-spells
 ```
 
