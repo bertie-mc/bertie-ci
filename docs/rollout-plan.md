@@ -44,9 +44,10 @@ replace one another.
    jobs, and feed the built JAR artifact to separate production probes. No test command
    silently rebuilds the production artifact it was asked to verify.
 
-All 21 custom NeoForge mods compose shared build and runtime jobs. The original 20 use
-`v3.1.1`; `primitive-refined` uses `v3.2.1`, which adds its Create fixture and aligns the
-production runtime with the pack's NeoForge 21.1.233 pin. Three physically client-only
+All 22 custom NeoForge mods compose shared build and runtime jobs. Nineteen baseline
+projects use `v3.1.1`; `fart-bomb`, `frozen-reg-fix`, and `primitive-refined` use
+`v3.3.3`, which includes the Create fixture and aligns the production runtime with the
+pack's NeoForge 21.1.233 pin. Three physically client-only
 projects omit the server job; common projects compose both. Dependency-bearing mods use
 the declarative `create`, `fdlib`, `forbidden-arcanus`, `ftb-filters`, `irons-spells`,
 `immersive-armors`, `rustic-engineer`, and `simply-swords` profiles. Only the two projects that currently
@@ -145,8 +146,9 @@ server does not perform a redundant preliminary launch. `v3.3.3` gives HeadlessM
 internal readiness test the caller's timeout and keeps a successful readiness assertion
 independent of a slow post-`stop` exit. Prepared full-pack probes completed locally on
 aarch64 in about four minutes for a 460-mod client world join and 3m37s for
-dedicated-server readiness after dependencies were assembled; hosted rollout remains the
-next phase. The earlier title-menu experiment is not the baseline because a UI
+dedicated-server readiness after dependencies were assembled. Hosted probes of the
+current pack completed the client world join in 7m33s and server readiness in 7m05s. The
+earlier title-menu experiment is not the baseline because a UI
 onboarding
 screen blocked it without proving whether an integrated world could load. The first
 prepared full-pack world-join run already improved on that signal: it reached the first
