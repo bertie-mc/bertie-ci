@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -103,6 +104,43 @@ def _set_options(path: Path, values: dict[str, str]) -> None:
     _write(path, retained)
 
 
+def _accept_minecraft_eula(game_dir: Path) -> None:
+    """Accept the EULA without launching a disposable server first."""
+    _write(
+        game_dir / "eula.txt",
+        [
+            "# Accepted by the explicitly requested bertie-ci server probe.",
+            "# https://aka.ms/MinecraftEULA",
+            "eula=true",
+        ],
+    )
+
+
+def _write_server_readiness_test(work: Path) -> Path:
+    """Create a HeadlessMC test whose success boundary is server readiness."""
+    target = work / "server-readiness-test.json"
+    target.write_text(
+        json.dumps(
+            {
+                "name": "Bertie server readiness",
+                "implicitWaitForEnd": False,
+                "steps": [
+                    {
+                        "type": "ENDS_WITH",
+                        "message": 'For help, type "help"',
+                    },
+                    {"type": "SEND", "message": "stop"},
+                    {"type": "SUCCESS"},
+                ],
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return target
+
+
 def run_client_probe(
     context: ProbeContext, timeout_seconds: int, max_memory: str
 ) -> None:
@@ -164,6 +202,7 @@ def run_server_probe(
     game_dir = context.instance.game_dir
     minecraft = (context.cache / "minecraft").resolve()
     minecraft.mkdir(parents=True, exist_ok=True)
+    readiness_test = _write_server_readiness_test(work)
 
     write_properties(
         work / "HeadlessMC" / "config.properties",
@@ -180,9 +219,15 @@ def run_server_probe(
             "hmc.exit.on.failed.command": "true",
             "hmc.server.launch.for.eula": "true",
             "hmc.server.accept.eula": "true",
-            "hmc.server.test": "true",
+            # The built-in server test waits for a clean shutdown. Our assertion
+            # boundary is readiness; a large pack may spend minutes in work
+            # scheduled immediately after printing Done. The custom test sends
+            # stop but treats the readiness marker itself as success.
+            "hmc.server.test": "false",
             "hmc.server.test.cache": "true",
             "hmc.server.test.cache.use.mc.dir": "true",
+            "hmc.test.filename": readiness_test,
+            "hmc.test.leave.after": "false",
             "hmc.crash.report.watcher": "true",
             "hmc.loglevel": "INFO",
         },
@@ -207,6 +252,10 @@ def run_server_probe(
         log=work / "neoforge-server-install.log",
         stream_output=False,
     )
+    # HeadlessMC can create this by launching the server once before the real
+    # readiness run. A large modpack can fill that preliminary process's output
+    # pipe during mod discovery, so provision the same accepted state directly.
+    _accept_minecraft_eula(game_dir)
     print("Launching dedicated-server readiness probe", flush=True)
     run(
         [*_java(context), "--command", "server", "launch", "0", "-id"],

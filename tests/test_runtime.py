@@ -1,3 +1,4 @@
+import json
 import os
 import stat
 from pathlib import Path
@@ -5,7 +6,12 @@ from pathlib import Path
 import pytest
 
 from bertie_ci.artifact import find_artifact
-from bertie_ci.runtime import _reset_probe, _set_options
+from bertie_ci.runtime import (
+    _accept_minecraft_eula,
+    _reset_probe,
+    _set_options,
+    _write_server_readiness_test,
+)
 
 
 def test_find_artifact_ignores_documentation_jars(tmp_path: Path) -> None:
@@ -93,4 +99,27 @@ def test_set_options_replaces_probe_values_and_preserves_pack_values(
         "renderDistance:12",
         "onboardAccessibility:false",
         "pauseOnLostFocus:false",
+    ]
+
+
+def test_accept_minecraft_eula_avoids_preliminary_server_launch(
+    tmp_path: Path,
+) -> None:
+    _accept_minecraft_eula(tmp_path)
+
+    assert (tmp_path / "eula.txt").read_text(encoding="utf-8").splitlines()[-1] == (
+        "eula=true"
+    )
+
+
+def test_server_readiness_test_does_not_require_clean_shutdown(
+    tmp_path: Path,
+) -> None:
+    test = json.loads(_write_server_readiness_test(tmp_path).read_text(encoding="utf-8"))
+
+    assert test["implicitWaitForEnd"] is False
+    assert [step["type"] for step in test["steps"]] == [
+        "ENDS_WITH",
+        "SEND",
+        "SUCCESS",
     ]
