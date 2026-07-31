@@ -1,20 +1,14 @@
-name: NeoForge GameTests
+name: JVM unit tests
 
 on:
   workflow_call:
-    inputs:
-      timeout:
-        description: GameTest timeout in seconds
-        required: false
-        type: number
-        default: 900
 
 permissions:
   contents: read
 
 jobs:
-  gametest:
-    name: NeoForge GameTests
+  unit-test:
+    name: JVM unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -24,16 +18,16 @@ jobs:
       - name: Set up dependencies
         uses: bertie-mc/bertie-ci/actions/setup-nix@v3.1.0
 
-      - name: Run GameTests
-        uses: bertie-mc/bertie-ci/actions/gametest@v3.1.0
-        with:
-          timeout: ${{ inputs.timeout }}
+      - name: Run unit tests
+        uses: bertie-mc/bertie-ci/actions/unit-test@v3.1.0
 
-      - name: Upload GameTest log
+      - name: Upload unit-test reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: gametest-${{ github.repository_id }}-${{ github.sha }}
-          path: .bertie-ci/gametest.log
+          name: unit-test-${{ github.repository_id }}-${{ github.sha }}
+          path: |
+            build/reports/tests/
+            build/test-results/
           if-no-files-found: warn
           retention-days: 14

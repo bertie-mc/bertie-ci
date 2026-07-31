@@ -1,0 +1,19 @@
+name: Run JVM unit tests
+description: Run a mod's ordinary Gradle unit-test task
+
+inputs:
+  project:
+    description: Path to the mod checkout
+    required: false
+    default: .
+
+runs:
+  using: composite
+  steps:
+    - name: Run unit tests
+      shell: bash
+      env:
+        BERTIE_CI_PROJECT: ${{ inputs.project }}
+      run: >-
+        nix run "${GITHUB_ACTION_PATH}/../..#bertie-ci" --
+        unit-test --project "$BERTIE_CI_PROJECT"

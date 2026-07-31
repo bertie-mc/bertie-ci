@@ -37,8 +37,12 @@ def run_gradle(
     )
 
 
-def build_mod(project: Path, java_home: Path) -> None:
-    run_gradle(project, java_home, ["build"])
+def assemble_mod(project: Path, java_home: Path) -> None:
+    run_gradle(project, java_home, ["assemble"])
+
+
+def run_unit_tests(project: Path, java_home: Path) -> None:
+    run_gradle(project, java_home, ["test"])
 
 
 def run_gametests(

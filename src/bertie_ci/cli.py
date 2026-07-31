@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .artifact import find_artifact, stage_artifact
 from .config import load_java, load_tools, load_versions
-from .gradle import build_mod, run_gametests
+from .gradle import assemble_mod, run_gametests, run_unit_tests
 from .runtime import Context, run_client, run_server
 
 
@@ -49,6 +49,11 @@ def _parser() -> argparse.ArgumentParser:
         help="copy the single releaseable JAR into this artifact directory",
     )
 
+    unit_test = subcommands.add_parser(
+        "unit-test", help="run the mod's ordinary JVM unit tests"
+    )
+    _add_project(unit_test)
+
     gametest = subcommands.add_parser(
         "gametest", help="run NeoForge GameTests in the Gradle development runtime"
     )
@@ -75,7 +80,7 @@ def _project(args: argparse.Namespace) -> Path:
 def _run_build(args: argparse.Namespace) -> None:
     project = _project(args)
     java = load_java()
-    build_mod(project, java.parent.parent)
+    assemble_mod(project, java.parent.parent)
     artifact = find_artifact(project, None)
     if args.output_dir is not None:
         output_dir = args.output_dir
@@ -95,6 +100,13 @@ def _run_gametest(args: argparse.Namespace) -> None:
         f"NeoForge GameTests passed: {count} test(s). Logs: {work / 'gametest.log'}",
         flush=True,
     )
+
+
+def _run_unit_test(args: argparse.Namespace) -> None:
+    project = _project(args)
+    java = load_java()
+    run_unit_tests(project, java.parent.parent)
+    print("JVM unit tests passed.", flush=True)
 
 
 def _fixture_profiles(values: list[str]) -> list[str]:
@@ -133,6 +145,8 @@ def main() -> None:
         match args.command:
             case "build":
                 _run_build(args)
+            case "unit-test":
+                _run_unit_test(args)
             case "gametest":
                 _run_gametest(args)
             case "client" | "server":

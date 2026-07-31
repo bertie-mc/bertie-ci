@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Set up dependencies
-        uses: bertie-mc/bertie-ci/actions/setup-nix@v3.0.1
+        uses: bertie-mc/bertie-ci/actions/setup-nix@v3.1.0
 
       - name: Download built mod
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v8
@@ -32,7 +32,7 @@ jobs:
           path: .bertie-ci/artifact
 
       - name: Test server
-        uses: bertie-mc/bertie-ci/actions/server@v3.0.1
+        uses: bertie-mc/bertie-ci/actions/server@v3.1.0
         with:
           fixture: ${{ inputs.fixture }}
 

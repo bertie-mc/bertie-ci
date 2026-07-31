@@ -3,27 +3,30 @@
 Local-first Minecraft checks shared by the
 [`bertie-mc`](https://github.com/bertie-mc) projects.
 
-The executable is the abstraction boundary. Build, GameTests, client world join, and
-dedicated-server readiness are separate commands that can be composed locally or by any
-CI provider. GitHub Actions is only one adapter around them.
+The executable is the abstraction boundary. Artifact assembly, JVM unit tests,
+GameTests, client world join, and dedicated-server readiness are separate commands that
+can be composed locally or by any CI provider. GitHub Actions is only one adapter around
+them.
 
 ## Run locally
 
 From a custom mod checkout, build once and run whichever checks apply:
 
 ```bash
-nix run github:bertie-mc/bertie-ci/v3.0.1#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.1.0#bertie-ci -- \
   build --project . --output-dir .bertie-ci/artifact
-nix run github:bertie-mc/bertie-ci/v3.0.1#bertie-ci -- gametest --project .
-nix run github:bertie-mc/bertie-ci/v3.0.1#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.1.0#bertie-ci -- unit-test --project .
+nix run github:bertie-mc/bertie-ci/v3.1.0#bertie-ci -- gametest --project .
+nix run github:bertie-mc/bertie-ci/v3.1.0#bertie-ci -- \
   client --project . --artifact .bertie-ci/artifact
-nix run github:bertie-mc/bertie-ci/v3.0.1#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.1.0#bertie-ci -- \
   server --project . --artifact .bertie-ci/artifact
 ```
 
-`build` uses the repository's Gradle wrapper. `--output-dir` stages exactly one
-releaseable JAR, preserving its filename, so publishing and runtime checks can consume
-the same explicit artifact. `gametest` runs `runGameTestServer` in NeoForge's development runtime
+`build` uses the repository's Gradle wrapper to run `assemble`; it does not run tests.
+`--output-dir` stages exactly one releaseable JAR, preserving its filename, so publishing
+and runtime checks can consume the same explicit artifact. `unit-test` runs Gradle's
+ordinary JVM test task independently. `gametest` runs `runGameTestServer` in NeoForge's development runtime
 and fails closed unless at least one test is discovered and the GameTest server reports a
 clean completion. This catches mod-loading crashes that Gradle can otherwise report as a
 successful task.
@@ -43,7 +46,7 @@ Mods with external runtime dependencies select one or more declarative packwiz f
 profiles. For example:
 
 ```bash
-nix run github:bertie-mc/bertie-ci/v3.0.1#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.1.0#bertie-ci -- \
   client --project . --fixture forbidden-arcanus,irons-spells
 ```
 
@@ -56,15 +59,17 @@ Experimental Warning baseline; `bertie-pack` ships the same warning-hiding mod.
 
 The command-line operations are also exposed as independent composite actions:
 
-- `bertie-mc/bertie-ci/actions/setup-nix@v3.0.1`
-- `bertie-mc/bertie-ci/actions/build@v3.0.1`
-- `bertie-mc/bertie-ci/actions/gametest@v3.0.1`
-- `bertie-mc/bertie-ci/actions/client@v3.0.1`
-- `bertie-mc/bertie-ci/actions/server@v3.0.1`
-- `bertie-mc/bertie-ci/actions/github-release@v3.0.1`
+- `bertie-mc/bertie-ci/actions/setup-nix@v3.1.0`
+- `bertie-mc/bertie-ci/actions/build@v3.1.0`
+- `bertie-mc/bertie-ci/actions/unit-test@v3.1.0`
+- `bertie-mc/bertie-ci/actions/gametest@v3.1.0`
+- `bertie-mc/bertie-ci/actions/client@v3.1.0`
+- `bertie-mc/bertie-ci/actions/server@v3.1.0`
+- `bertie-mc/bertie-ci/actions/github-release@v3.1.0`
 
-They do not check out source, transfer artifacts, choose job dependencies, or publish a
-release. A custom workflow can compose them as ordinary steps.
+Each owns one operation. The build and test actions do not check out source, transfer
+artifacts, or choose job dependencies; the GitHub publisher consumes files and never
+builds them. A custom workflow can compose the actions as ordinary steps.
 
 Small reusable workflows provide the common GitHub-specific job adapters. A repository
 keeps its trigger and dependency graph visible while reusing the implementation:
@@ -80,41 +85,45 @@ on:
 
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.0.1
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.1.0
+
+  unit-test:
+    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.1.0
 
   gametest:
-    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.0.1
+    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.1.0
 
   client:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.0.1
+    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.1.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
 
   server:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.0.1
+    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.1.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
 ```
 
-`build-mod.yml` only builds and uploads a JAR. `client.yml` and `server.yml` only download
-and test the named artifact. `gametest.yml` only runs the development-runtime suite.
+`build-mod.yml` only assembles and uploads a JAR. `unit-test.yml` only runs ordinary JVM
+tests. `client.yml` and `server.yml` only download and test the named artifact.
+`gametest.yml` only runs the development-runtime suite.
 `github-release.yml` only downloads and publishes a named artifact. A release therefore
 composes `build-mod.yml` followed by `github-release.yml`; it has no second build recipe.
 
 ```yaml
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.0.1
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.1.0
 
   publish:
     needs: build
     permissions:
       contents: write
-    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.0.1
+    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.1.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
 ```

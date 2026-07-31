@@ -40,16 +40,17 @@ other.
    loopback, and let packwiz-installer resolve the requested client or server side into
    the ephemeral runtime directory. Do not implement another CurseForge/Modrinth
    downloader in `bertie-ci`.
-5. Keep compilation and unit tests in `build`, run Gradle GameTests as a separate
-   development-runtime job, and feed the built JAR artifact to separate production
-   probes. No test command silently rebuilds the artifact it was asked to verify.
+5. Assemble the JAR without tests, run JVM unit tests and Gradle GameTests as separate
+   jobs, and feed the built JAR artifact to separate production probes. No test command
+   silently rebuilds the production artifact it was asked to verify.
 
-All 20 custom NeoForge mods compose the shared `v3.0.1` build and runtime jobs. Three
+All 20 custom NeoForge mods compose the shared `v3.1.0` build and runtime jobs. Three
 physically client-only projects omit the server job; common projects compose both.
 Dependency-bearing mods use the declarative `fdlib`, `forbidden-arcanus`, `ftb-filters`,
 `irons-spells`, `rustic-engineer`, and `simply-swords` profiles. Only the two projects
-that currently contain registered GameTests compose the separate GameTest job. Release
-workflows compose the same build job with an artifact-only GitHub publisher.
+that currently contain registered GameTests compose the separate GameTest job. The three
+projects with JVM test sources compose the separate unit-test job. Release workflows
+compose the same assembly job with an artifact-only GitHub publisher.
 
 ## Modpack strategy
 
@@ -96,7 +97,7 @@ Before broad rollout:
 - the shared flake check is green on GitHub;
 - the `bertie-tiers` local and hosted client/server probes are green;
 - failures point at retained logs and crash reports;
-- the public actions and job workflows are tagged `v3.0.1`, and callers use that
+- the public actions and job workflows are tagged `v3.1.0`, and callers use that
   immutable release rather than bootstrap `@main`;
 - dependency fixtures are hash-pinned and side-aware;
 - a full-pack run has a measured cold-cache and warm-cache duration.
