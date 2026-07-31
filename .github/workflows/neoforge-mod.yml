@@ -37,6 +37,15 @@ jobs:
             mod --project . --sides '${{ inputs.sides }}' \
             --cache-dir "$BERTIE_CI_CACHE_DIR"
 
+      - name: Upload built mod
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: mod-${{ github.repository_id }}-${{ github.sha }}
+          path: build/libs/*.jar
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload runtime logs
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
