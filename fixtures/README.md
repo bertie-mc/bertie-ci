@@ -17,7 +17,7 @@ the profile with the smallest relevant client and/or server pilot.
 Update the canonical snapshot deliberately:
 
 ```bash
-nix flake update bertiePack
+nix flake update bertie-pack
 nix flake check
 ```
 

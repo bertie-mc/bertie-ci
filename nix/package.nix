@@ -24,7 +24,7 @@
   libxcb,
   mesa,
   openal,
-  bertiePack,
+  bertie-pack,
 }:
 let
   pyproject = lib.importTOML ../pyproject.toml;
@@ -86,7 +86,7 @@ python3Packages.buildPythonApplication {
   build-system = [ python3Packages.setuptools ];
 
   nativeCheckInputs = [ python3Packages.pytestCheckHook ];
-  env.BERTIE_CI_FIXTURE_PACK = bertiePack;
+  env.BERTIE_CI_FIXTURE_PACK = bertie-pack;
 
   __structuredAttrs = true;
   makeWrapperArgs = [
@@ -117,7 +117,7 @@ python3Packages.buildPythonApplication {
     ../fixtures
     "--set-default"
     "BERTIE_CI_FIXTURE_PACK"
-    bertiePack
+    bertie-pack
     "--set-default"
     "BERTIE_CI_JAVA_HOME"
     jdk21

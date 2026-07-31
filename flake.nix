@@ -14,7 +14,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    bertiePack = {
+    bertie-pack = {
       url = "github:bertie-mc/bertie-pack";
       flake = false;
     };
@@ -38,7 +38,7 @@
         { config, pkgs, ... }:
         let
           package = pkgs.callPackage ./nix/package.nix {
-            bertiePack = inputs.bertiePack.outPath;
+            bertie-pack = inputs.bertie-pack.outPath;
           };
           app = {
             program = package;

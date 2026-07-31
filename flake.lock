@@ -1,6 +1,6 @@
 {
   "nodes": {
-    "bertiePack": {
+    "bertie-pack": {
       "flake": false,
       "locked": {
         "lastModified": 1785531613,
@@ -54,7 +54,7 @@
     },
     "root": {
       "inputs": {
-        "bertiePack": "bertiePack",
+        "bertie-pack": "bertie-pack",
         "flake-parts": "flake-parts",
         "nixpkgs": "nixpkgs",
         "treefmt-nix": "treefmt-nix"

@@ -68,7 +68,7 @@ which also keeps `versions.json` and `fixtures/` on the paths the runner expects
 git clone https://github.com/bertie-mc/bertie-ci.git
 git clone https://github.com/bertie-mc/bertie-pack.git
 cd bertie-ci
-$packRev = (Get-Content .\flake.lock | ConvertFrom-Json).nodes.bertiePack.locked.rev
+$packRev = (Get-Content .\flake.lock | ConvertFrom-Json).nodes.'bertie-pack'.locked.rev
 git -C ..\bertie-pack checkout $packRev
 $env:BERTIE_CI_FIXTURE_PACK = (Resolve-Path ..\bertie-pack)
 $env:PYTHONPATH = "$PWD\src"
