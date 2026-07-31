@@ -24,10 +24,7 @@ jobs:
           path: .bertie-ci/release
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        uses: bertie-mc/bertie-ci/actions/github-release@v3.0.1
         with:
           files: .bertie-ci/release/*.jar
-          generate_release_notes: true
-          draft: false
           prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
-          fail_on_unmatched_files: true

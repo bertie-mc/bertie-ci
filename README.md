@@ -12,12 +12,12 @@ CI provider. GitHub Actions is only one adapter around them.
 From a custom mod checkout, build once and run whichever checks apply:
 
 ```bash
-nix run github:bertie-mc/bertie-ci/v3.0.0#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.0.1#bertie-ci -- \
   build --project . --output-dir .bertie-ci/artifact
-nix run github:bertie-mc/bertie-ci/v3.0.0#bertie-ci -- gametest --project .
-nix run github:bertie-mc/bertie-ci/v3.0.0#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.0.1#bertie-ci -- gametest --project .
+nix run github:bertie-mc/bertie-ci/v3.0.1#bertie-ci -- \
   client --project . --artifact .bertie-ci/artifact
-nix run github:bertie-mc/bertie-ci/v3.0.0#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.0.1#bertie-ci -- \
   server --project . --artifact .bertie-ci/artifact
 ```
 
@@ -43,7 +43,7 @@ Mods with external runtime dependencies select one or more declarative packwiz f
 profiles. For example:
 
 ```bash
-nix run github:bertie-mc/bertie-ci/v3.0.0#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.0.1#bertie-ci -- \
   client --project . --fixture forbidden-arcanus,irons-spells
 ```
 
@@ -56,11 +56,12 @@ Experimental Warning baseline; `bertie-pack` ships the same warning-hiding mod.
 
 The command-line operations are also exposed as independent composite actions:
 
-- `bertie-mc/bertie-ci/actions/setup-nix@v3.0.0`
-- `bertie-mc/bertie-ci/actions/build@v3.0.0`
-- `bertie-mc/bertie-ci/actions/gametest@v3.0.0`
-- `bertie-mc/bertie-ci/actions/client@v3.0.0`
-- `bertie-mc/bertie-ci/actions/server@v3.0.0`
+- `bertie-mc/bertie-ci/actions/setup-nix@v3.0.1`
+- `bertie-mc/bertie-ci/actions/build@v3.0.1`
+- `bertie-mc/bertie-ci/actions/gametest@v3.0.1`
+- `bertie-mc/bertie-ci/actions/client@v3.0.1`
+- `bertie-mc/bertie-ci/actions/server@v3.0.1`
+- `bertie-mc/bertie-ci/actions/github-release@v3.0.1`
 
 They do not check out source, transfer artifacts, choose job dependencies, or publish a
 release. A custom workflow can compose them as ordinary steps.
@@ -79,21 +80,21 @@ on:
 
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.0.0
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.0.1
 
   gametest:
-    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.0.0
+    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.0.1
 
   client:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.0.0
+    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.0.1
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
 
   server:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.0.0
+    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.0.1
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
@@ -107,13 +108,13 @@ composes `build-mod.yml` followed by `github-release.yml`; it has no second buil
 ```yaml
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.0.0
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.0.1
 
   publish:
     needs: build
     permissions:
       contents: write
-    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.0.0
+    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.0.1
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
 ```
