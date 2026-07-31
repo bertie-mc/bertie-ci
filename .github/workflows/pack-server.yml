@@ -27,16 +27,16 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up dependencies
-        uses: bertie-mc/bertie-ci/actions/setup-nix@v3.3.2
+        uses: bertie-mc/bertie-ci/actions/setup-nix@v3.3.3
 
       - name: Prepare server pack
-        uses: bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.3.2
+        uses: bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.3.3
         with:
           side: server
           output-dir: .bertie-ci/server
 
       - name: Reach dedicated-server readiness
-        uses: bertie-mc/bertie-ci/actions/server-probe@v3.3.2
+        uses: bertie-mc/bertie-ci/actions/server-probe@v3.3.3
         with:
           instance: .bertie-ci/server/instance.json
           work-dir: .bertie-ci/server

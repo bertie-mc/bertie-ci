@@ -133,7 +133,7 @@ Before broad rollout:
 - the shared flake check is green on GitHub;
 - the `bertie-tiers` local and hosted client/server probes are green;
 - failures point at retained logs and crash reports;
-- the public actions and job workflows are tagged `v3.3.2`, and callers use that
+- the public actions and job workflows are tagged `v3.3.3`, and callers use that
   immutable release rather than bootstrap `@main`;
 - dependency fixtures are hash-pinned and side-aware;
 - a full-pack run has a measured cold-cache and warm-cache duration.
@@ -141,10 +141,12 @@ Before broad rollout:
 The shared-action gates are complete. `v3.3.1` added the full desktop JDK needed when a
 client mod initializes AWT and made repeated probes safe when Nix-sourced JARs are
 read-only. `v3.3.2` provisions the accepted Minecraft EULA directly so a large dedicated
-server does not perform a redundant preliminary launch. Prepared full-pack probes
-completed locally on aarch64 in about four minutes for a 460-mod client world join and
-3m37s for dedicated-server readiness after dependencies were assembled; hosted rollout
-remains the next phase. The earlier title-menu experiment is not the baseline because a UI
+server does not perform a redundant preliminary launch. `v3.3.3` gives HeadlessMC's
+internal readiness test the caller's timeout and keeps a successful readiness assertion
+independent of a slow post-`stop` exit. Prepared full-pack probes completed locally on
+aarch64 in about four minutes for a 460-mod client world join and 3m37s for
+dedicated-server readiness after dependencies were assembled; hosted rollout remains the
+next phase. The earlier title-menu experiment is not the baseline because a UI
 onboarding
 screen blocked it without proving whether an integrated world could load. The first
 prepared full-pack world-join run already improved on that signal: it reached the first

@@ -29,7 +29,7 @@
           };
           bertie-ci = pkgs.python3Packages.buildPythonApplication {
             pname = "bertie-ci";
-            version = "3.3.2";
+            version = "3.3.3";
             pyproject = true;
             src = ./.;
             build-system = [ pkgs.python3Packages.setuptools ];

@@ -9,6 +9,7 @@ from bertie_ci.artifact import find_artifact
 from bertie_ci.runtime import (
     _accept_minecraft_eula,
     _reset_probe,
+    _server_readiness_was_recorded,
     _set_options,
     _write_server_readiness_test,
 )
@@ -115,11 +116,39 @@ def test_accept_minecraft_eula_avoids_preliminary_server_launch(
 def test_server_readiness_test_does_not_require_clean_shutdown(
     tmp_path: Path,
 ) -> None:
-    test = json.loads(_write_server_readiness_test(tmp_path).read_text(encoding="utf-8"))
+    test = json.loads(
+        _write_server_readiness_test(tmp_path, 4500).read_text(encoding="utf-8")
+    )
 
+    assert test["timeout"] == 4350
     assert test["implicitWaitForEnd"] is False
     assert [step["type"] for step in test["steps"]] == [
         "ENDS_WITH",
         "SEND",
         "SUCCESS",
     ]
+
+
+def test_server_readiness_timeout_keeps_cleanup_margin(tmp_path: Path) -> None:
+    test = json.loads(
+        _write_server_readiness_test(tmp_path, 120).read_text(encoding="utf-8")
+    )
+
+    assert test["timeout"] == 1
+
+
+def test_server_readiness_requires_headlessmc_success_marker(tmp_path: Path) -> None:
+    runtime_log = tmp_path / "runtime.log"
+    runtime_log.write_text(
+        "[main/INFO] CommandTest was successful.\nMinecraft exited with code: 143\n",
+        encoding="utf-8",
+    )
+
+    assert _server_readiness_was_recorded(runtime_log)
+
+
+def test_server_readiness_rejects_missing_success_marker(tmp_path: Path) -> None:
+    runtime_log = tmp_path / "runtime.log"
+    runtime_log.write_text("CommandTest failed!\n", encoding="utf-8")
+
+    assert not _server_readiness_was_recorded(runtime_log)

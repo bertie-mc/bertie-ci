@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,6 +11,9 @@ from .filesystem import remove_file, remove_tree, replace_file
 from .instance import Instance
 from .process import run
 from .properties import write_properties
+
+
+_SERVER_TEST_SUCCESS = "CommandTest was successful."
 
 
 @dataclass(frozen=True)
@@ -116,13 +120,18 @@ def _accept_minecraft_eula(game_dir: Path) -> None:
     )
 
 
-def _write_server_readiness_test(work: Path) -> Path:
+def _write_server_readiness_test(work: Path, timeout_seconds: int) -> Path:
     """Create a HeadlessMC test whose success boundary is server readiness."""
+    # HeadlessMC otherwise applies an independent 120-second default to the
+    # readiness marker. Keep enough of the command deadline for its process
+    # cleanup after the test sends ``stop``.
+    readiness_timeout = max(1, timeout_seconds - 150)
     target = work / "server-readiness-test.json"
     target.write_text(
         json.dumps(
             {
                 "name": "Bertie server readiness",
+                "timeout": readiness_timeout,
                 "implicitWaitForEnd": False,
                 "steps": [
                     {
@@ -139,6 +148,12 @@ def _write_server_readiness_test(work: Path) -> Path:
         encoding="utf-8",
     )
     return target
+
+
+def _server_readiness_was_recorded(runtime_log: Path) -> bool:
+    return runtime_log.is_file() and _SERVER_TEST_SUCCESS in runtime_log.read_text(
+        encoding="utf-8", errors="replace"
+    )
 
 
 def run_client_probe(
@@ -202,7 +217,7 @@ def run_server_probe(
     game_dir = context.instance.game_dir
     minecraft = (context.cache / "minecraft").resolve()
     minecraft.mkdir(parents=True, exist_ok=True)
-    readiness_test = _write_server_readiness_test(work)
+    readiness_test = _write_server_readiness_test(work, timeout_seconds)
 
     write_properties(
         work / "HeadlessMC" / "config.properties",
@@ -257,10 +272,24 @@ def run_server_probe(
     # pipe during mod discovery, so provision the same accepted state directly.
     _accept_minecraft_eula(game_dir)
     print("Launching dedicated-server readiness probe", flush=True)
-    run(
-        [*_java(context), "--command", "server", "launch", "0", "-id"],
-        cwd=work,
-        log=work / "runtime.log",
-        timeout_seconds=timeout_seconds,
-    )
+    runtime_log = work / "runtime.log"
+    try:
+        run(
+            [*_java(context), "--command", "server", "launch", "0", "-id"],
+            cwd=work,
+            log=runtime_log,
+            timeout_seconds=timeout_seconds,
+        )
+    except subprocess.CalledProcessError:
+        # HeadlessMC waits for the child after the readiness test succeeds. A
+        # large pack can exceed its two-minute shutdown grace period and be
+        # force-terminated, producing a non-zero child status. Readiness is the
+        # probe contract, so only accept that status when HeadlessMC itself
+        # recorded the successful test first.
+        if not _server_readiness_was_recorded(runtime_log):
+            raise
+        print(
+            "Readiness passed; ignoring the server's post-readiness exit status.",
+            flush=True,
+        )
     print(f"Dedicated-server probe passed. Logs: {work}", flush=True)
