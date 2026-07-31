@@ -61,10 +61,10 @@
             help =
               pkgs.runCommand "bertie-ci-help"
                 {
-                  bertieCi = pkgs.lib.getExe package;
+                  nativeBuildInputs = [ package ];
                 }
                 ''
-                  "$bertieCi" --help > "$out"
+                  bertie-ci --help > "$out"
                 '';
             workflows =
               pkgs.runCommand "bertie-ci-workflows"
