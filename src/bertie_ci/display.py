@@ -54,7 +54,15 @@ def _check_glx(tools: Tools, environment: dict[str, str]) -> None:
 def virtual_display(tools: Tools, log: Path) -> Iterator[dict[str, str]]:
     environment = {**os.environ, "LIBGL_ALWAYS_SOFTWARE": "true"}
     if tools.xvfb is None:
-        if os.name != "nt" and not environment.get("DISPLAY"):
+        if os.name == "nt":
+            # Windows has no Xvfb equivalent. The probe runs against the desktop
+            # session, so a real game window opens and takes focus.
+            print(
+                "No virtual display configured; the client will open a window on "
+                "the active Windows desktop session.",
+                flush=True,
+            )
+        elif not environment.get("DISPLAY"):
             raise RuntimeError(
                 "No display is available; supply BERTIE_CI_XVFB or DISPLAY"
             )

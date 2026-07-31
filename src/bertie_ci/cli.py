@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 from .artifact import find_artifact, stage_artifact
@@ -37,7 +38,8 @@ def _add_runtime(parser: argparse.ArgumentParser, default_timeout: int) -> None:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Composable local-first checks for bertie-mc projects"
+        prog="bertie-ci",
+        description="Composable local-first checks for bertie-mc projects",
     )
     subcommands = parser.add_subparsers(dest="command", required=True)
 
@@ -138,7 +140,21 @@ def _run_runtime(args: argparse.Namespace, side: str) -> None:
         run_server(context, profiles, args.timeout)
 
 
+def tolerate_unencodable_output() -> None:
+    """Never let mirrored subprocess output kill a run.
+
+    Minecraft logs carry characters the Windows ANSI code page cannot encode, and
+    a redirected stdout on Windows uses that code page rather than UTF-8. The
+    unabridged text is always kept in the run's log file, which is UTF-8.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="replace")
+
+
 def main() -> None:
+    tolerate_unencodable_output()
     parser = _parser()
     args = parser.parse_args()
     try:
