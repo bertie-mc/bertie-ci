@@ -82,6 +82,40 @@ independent of title-screen replacements and proves resource reload, integrated-
 startup, world generation, player login, and rendering. The timeout remains an explicit
 failure boundary for hidden dialogs or loading screens.
 
+### Next implementation slice
+
+Use a prepared instance as the boundary between assembly and assertions. Do not add a
+`--pack` branch to the existing mod-artifact runner and do not make one action build,
+install, and test everything.
+
+1. Add `pack-validate`, which refreshes a temporary copy of a pack and checks metadata
+   without modifying the checkout. Keep download resolution as a separate operation.
+2. Add `prepare-mod-instance` and `prepare-pack-instance`. Each writes a side-specific
+   instance plus a small machine-readable descriptor containing the exact Minecraft and
+   loader versions. Mod preparation installs fixture profiles and the built artifact;
+   pack preparation installs the canonical packwiz manifest.
+3. Make `client-probe` and `server-probe` consume only that descriptor and instance.
+   They contain no knowledge of Gradle artifacts, fixture catalogs, or packwiz source
+   trees. Both preparation paths therefore exercise the same HeadlessHQ assertions.
+4. Expose those commands as one-purpose composite actions. GitHub reusable workflows may
+   compose checkout and artifact transport, but the same commands remain directly usable
+   from Nix or another CI provider.
+5. Add separate `pack-export-client` and `pack-export-server` commands and actions.
+   Release publication consumes their artifacts; it neither rebuilds nor reimplements
+   either exporter.
+6. Replace the pack's shell-heavy validation, client, server, and release workflows only
+   after the local commands pass. Keep the canonical client/server probes scheduled and
+   manually dispatchable until their timing is stable, then decide which should gate pull
+   requests.
+
+The first completed client experiment installed the pack quickly and reported that the
+game itself took 122.73 seconds to start. Its 83-minute duration was a timeout on
+WorldWeaver's first-run screen, not 83 minutes of mod loading. The pack now ships the
+normal WorldWeaver client configuration that suppresses that wizard and disables its
+network update checks. This makes the canonical full-pack world join the next useful
+measurement; diagnostic component profiles can wait until a real runtime or debugging
+cost demonstrates that they are needed.
+
 ## Provider and platform adapters
 
 - GitHub Actions composes the public actions or small reusable job workflows.
