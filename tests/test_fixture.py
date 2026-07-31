@@ -10,6 +10,7 @@ from bertie_ci.fixture import build_fixture_pack
 
 
 VERSIONS = Versions("1.21.1", "21.1.217", "21", "2.10.0", "4.5.1", "0.5.14")
+BUNDLED_FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 def _catalog(tmp_path: Path) -> Path:
@@ -58,3 +59,27 @@ def test_build_fixture_pack_rejects_unknown_profile(tmp_path: Path) -> None:
             VERSIONS,
             "server",
         )
+
+
+def test_bundled_fixture_profiles_reference_pinned_catalog_entries() -> None:
+    profiles = json.loads(
+        (BUNDLED_FIXTURES / "profiles.json").read_text(encoding="utf-8")
+    )
+    defaults = json.loads(
+        (BUNDLED_FIXTURES / "defaults.json").read_text(encoding="utf-8")
+    )
+    names = {
+        name
+        for entries in [*profiles.values(), *defaults.values()]
+        for name in entries
+    }
+
+    for name in names:
+        metafile = BUNDLED_FIXTURES / "catalog" / f"{name}.pw.toml"
+        data = tomllib.loads(metafile.read_text(encoding="utf-8"))
+        assert data["filename"].endswith(".jar")
+        download = data["download"]
+        assert download.get("url", "https://metadata").startswith("https://")
+        assert download.get("url") or download.get("mode", "").startswith("metadata:")
+        assert download["hash-format"] in hashlib.algorithms_available
+        assert download["hash"]

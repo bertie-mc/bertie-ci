@@ -44,9 +44,9 @@ replace one another.
    jobs, and feed the built JAR artifact to separate production probes. No test command
    silently rebuilds the production artifact it was asked to verify.
 
-All 20 custom NeoForge mods compose the shared `v3.1.1` build and runtime jobs. Three
+All 21 custom NeoForge mods compose the shared `v3.2.0` build and runtime jobs. Three
 physically client-only projects omit the server job; common projects compose both.
-Dependency-bearing mods use the declarative `fdlib`, `forbidden-arcanus`, `ftb-filters`,
+Dependency-bearing mods use the declarative `create`, `fdlib`, `forbidden-arcanus`, `ftb-filters`,
 `irons-spells`, `rustic-engineer`, and `simply-swords` profiles. Only the two projects
 that currently contain registered GameTests compose the separate GameTest job. The three
 projects with JVM test sources compose the separate unit-test job. Release workflows
@@ -97,7 +97,7 @@ Before broad rollout:
 - the shared flake check is green on GitHub;
 - the `bertie-tiers` local and hosted client/server probes are green;
 - failures point at retained logs and crash reports;
-- the public actions and job workflows are tagged `v3.1.1`, and callers use that
+- the public actions and job workflows are tagged `v3.2.0`, and callers use that
   immutable release rather than bootstrap `@main`;
 - dependency fixtures are hash-pinned and side-aware;
 - a full-pack run has a measured cold-cache and warm-cache duration.

@@ -22,10 +22,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up dependencies
-        uses: bertie-mc/bertie-ci/actions/setup-nix@v3.1.1
+        uses: bertie-mc/bertie-ci/actions/setup-nix@v3.2.0
 
       - name: Run GameTests
-        uses: bertie-mc/bertie-ci/actions/gametest@v3.1.1
+        uses: bertie-mc/bertie-ci/actions/gametest@v3.2.0
         with:
           timeout: ${{ inputs.timeout }}
 
