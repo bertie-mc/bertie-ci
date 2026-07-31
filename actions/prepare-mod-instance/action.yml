@@ -11,7 +11,7 @@ inputs:
     required: false
     default: .bertie-ci/artifact
   fixture:
-    description: Comma-separated dependency fixture profiles
+    description: Comma-separated dependency profiles sourced from the canonical pack
     required: false
     default: ""
   side:

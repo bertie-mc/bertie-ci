@@ -25,10 +25,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up dependencies
-        uses: bertie-mc/bertie-ci/actions/setup-nix@v3.3.3
+        uses: bertie-mc/bertie-ci/actions/setup-nix@v3.4.0
 
       - name: Export server pack
-        uses: bertie-mc/bertie-ci/actions/pack-export-server@v3.3.3
+        uses: bertie-mc/bertie-ci/actions/pack-export-server@v3.4.0
         with:
           output: .bertie-ci/export/${{ inputs.output-file }}
 

@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "bertiePack": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1785531613,
+        "narHash": "sha256-UFtLfgu3WMmPAsjEYYUOnbJ4vB1XixhK8/Fw0xbHnXI=",
+        "owner": "bertie-mc",
+        "repo": "bertie-pack",
+        "rev": "649f154369649b598fdbf5f057a257d2a5fbceef",
+        "type": "github"
+      },
+      "original": {
+        "owner": "bertie-mc",
+        "repo": "bertie-pack",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1785454630,
@@ -18,6 +34,7 @@
     },
     "root": {
       "inputs": {
+        "bertiePack": "bertiePack",
         "nixpkgs": "nixpkgs"
       }
     }

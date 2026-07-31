@@ -2,9 +2,13 @@
   description = "Local-first Minecraft runtime checks for bertie-mc";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  inputs.bertiePack = {
+    url = "github:bertie-mc/bertie-pack";
+    flake = false;
+  };
 
   outputs =
-    { self, nixpkgs, ... }:
+    { self, nixpkgs, bertiePack, ... }:
     let
       versions = builtins.fromJSON (builtins.readFile ./versions.json);
       supportedSystems = [
@@ -29,12 +33,15 @@
           };
           bertie-ci = pkgs.python3Packages.buildPythonApplication {
             pname = "bertie-ci";
-            version = "3.3.3";
+            version = "3.4.0";
             pyproject = true;
             src = ./.;
             build-system = [ pkgs.python3Packages.setuptools ];
             nativeBuildInputs = [ pkgs.makeWrapper ];
             nativeCheckInputs = [ pkgs.python3Packages.pytestCheckHook ];
+            preCheck = ''
+              export BERTIE_CI_FIXTURE_PACK=${bertiePack}
+            '';
             postFixup = ''
               wrapProgram "$out/bin/bertie-ci" \
                 --prefix PATH : ${
@@ -54,6 +61,7 @@
                 --set-default BERTIE_CI_PACKWIZ_INSTALLER_JAR ${packwizInstaller} \
                 --set-default BERTIE_CI_PACKWIZ ${pkgs.packwiz}/bin/packwiz \
                 --set-default BERTIE_CI_FIXTURES ${./fixtures} \
+                --set-default BERTIE_CI_FIXTURE_PACK ${bertiePack} \
                 --set-default BERTIE_CI_JAVA_HOME ${pkgs.jdk21} \
                 --set-default BERTIE_CI_XVFB ${pkgs.xorg-server}/bin/Xvfb \
                 --set-default BERTIE_CI_GLXINFO ${pkgs.mesa-demos}/bin/glxinfo \

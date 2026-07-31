@@ -66,7 +66,11 @@ which also keeps `versions.json` and `fixtures/` on the paths the runner expects
 
 ```powershell
 git clone https://github.com/bertie-mc/bertie-ci.git
+git clone https://github.com/bertie-mc/bertie-pack.git
 cd bertie-ci
+$packRev = (Get-Content .\flake.lock | ConvertFrom-Json).nodes.bertiePack.locked.rev
+git -C ..\bertie-pack checkout $packRev
+$env:BERTIE_CI_FIXTURE_PACK = (Resolve-Path ..\bertie-pack)
 $env:PYTHONPATH = "$PWD\src"
 python -m bertie_ci --help
 ```
@@ -77,10 +81,11 @@ python -m bertie_ci --help
 uv run bertie-ci --help
 ```
 
-An installed copy does not carry `versions.json` or the fixture catalog, because both sit
-outside the Python package. Point `BERTIE_CI_VERSIONS` and `BERTIE_CI_FIXTURES` at the
-checkout if you install the package somewhere else. Running from the checkout avoids the
-problem entirely.
+An installed copy does not carry `versions.json` or the fixture profiles, because both
+sit outside the Python package. Point `BERTIE_CI_VERSIONS` and `BERTIE_CI_FIXTURES` at the
+checkout if you install the package somewhere else. Runtime fixture commands also need
+`BERTIE_CI_FIXTURE_PACK` to identify the canonical pack checkout. The commands above use
+the exact revision pinned by `flake.lock`, matching Linux and hosted CI.
 
 ## Build, unit tests, and GameTests
 
@@ -181,7 +186,8 @@ not the project, and are reused by later runs.
 | `BERTIE_CI_MCRT_JAR` | `mc-runtime-test` probe JAR | required for `client`/`server` |
 | `BERTIE_CI_PACKWIZ_INSTALLER_JAR` | packwiz-installer JAR | required for `client`/`server` |
 | `BERTIE_CI_VERSIONS` | Path to `versions.json` | repository root |
-| `BERTIE_CI_FIXTURES` | Path to the fixture catalog | `fixtures/` in the repository |
+| `BERTIE_CI_FIXTURES` | Path to the fixture profile mappings | `fixtures/` in the repository |
+| `BERTIE_CI_FIXTURE_PACK` | Canonical `bertie-pack` checkout | required when installing fixtures |
 | `BERTIE_CI_XVFB` | Xvfb binary | unset, and unusable on Windows |
 | `BERTIE_CI_GLXINFO` | `glxinfo` binary for the GL preflight | unset, and unusable on Windows |
 | `BERTIE_CI_SHELL` | Shell used to launch `gradlew` | unused; Windows runs `gradlew.bat` directly |

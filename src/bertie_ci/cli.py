@@ -37,7 +37,7 @@ def _add_fixture(parser: argparse.ArgumentParser) -> None:
         "--fixture",
         action="append",
         default=[],
-        help="comma-separated fixture profiles; may be repeated",
+        help="comma-separated canonical-pack fixture profiles; may be repeated",
     )
 
 

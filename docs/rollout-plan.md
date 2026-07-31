@@ -35,21 +35,23 @@ replace one another.
 3. Add a generic fixture input before moving mods with required runtime dependencies.
    Fixture selection must be declarative data; the runner must not grow branches named
    after individual projects.
-4. Represent fixtures as small packwiz packs generated from a central dependency
-   catalog. Pin the packwiz installer in Nix, serve the generated pack from Python on
-   loopback, and let packwiz-installer resolve the requested client or server side into
-   the ephemeral runtime directory. Do not implement another CurseForge/Modrinth
-   downloader in `bertie-ci`.
+4. Represent fixtures as small packwiz packs generated from declarative dependency
+   profiles. Pin the canonical `bertie-pack` checkout and the packwiz installer in Nix,
+   select metafiles directly from that pack snapshot, serve the generated pack from
+   Python on loopback, and let packwiz-installer resolve the requested client or server
+   side into the ephemeral runtime directory. Do not duplicate pack metafiles or
+   implement another CurseForge/Modrinth downloader in `bertie-ci`.
 5. Assemble the JAR without tests, run JVM unit tests and Gradle GameTests as separate
    jobs, and feed the built JAR artifact to separate production probes. No test command
    silently rebuilds the production artifact it was asked to verify.
 
 All 22 custom NeoForge mods compose shared build and runtime jobs. Nineteen baseline
-projects use `v3.1.1`; `fart-bomb`, `frozen-reg-fix`, and `primitive-refined` use
-`v3.3.3`, which includes the Create fixture and aligns the production runtime with the
-pack's NeoForge 21.1.233 pin. Three physically client-only
+projects use `v3.1.1`; `frozen-reg-fix` and `primitive-refined` use `v3.3.3`, while
+`fart-bomb` uses `v3.4.0`. The newer releases include the Create fixture, align the
+production runtime with the pack's NeoForge 21.1.233 pin, and source dependency profiles
+from a pinned canonical pack snapshot. Three physically client-only
 projects omit the server job; common projects compose both. Dependency-bearing mods use
-the declarative `create`, `fdlib`, `forbidden-arcanus`, `ftb-filters`, `irons-spells`,
+the declarative `artifacts`, `create`, `fdlib`, `forbidden-arcanus`, `ftb-filters`, `irons-spells`,
 `immersive-armors`, `rustic-engineer`, and `simply-swords` profiles. Only the two projects that currently
 contain registered GameTests compose the separate GameTest job. The three projects with
 JVM test sources compose the separate unit-test job. Release workflows compose the same
@@ -134,7 +136,7 @@ Before broad rollout:
 - the shared flake check is green on GitHub;
 - the `bertie-tiers` local and hosted client/server probes are green;
 - failures point at retained logs and crash reports;
-- the public actions and job workflows are tagged `v3.3.3`, and callers use that
+- the public actions and job workflows are tagged `v3.4.0`, and callers use that
   immutable release rather than bootstrap `@main`;
 - dependency fixtures are hash-pinned and side-aware;
 - a full-pack run has a measured cold-cache and warm-cache duration.
@@ -144,7 +146,9 @@ client mod initializes AWT and made repeated probes safe when Nix-sourced JARs a
 read-only. `v3.3.2` provisions the accepted Minecraft EULA directly so a large dedicated
 server does not perform a redundant preliminary launch. `v3.3.3` gives HeadlessMC's
 internal readiness test the caller's timeout and keeps a successful readiness assertion
-independent of a slow post-`stop` exit. Prepared full-pack probes completed locally on
+independent of a slow post-`stop` exit. `v3.4.0` removes the duplicated fixture metafiles,
+selects them from a flake-locked `bertie-pack` snapshot, and adds the Artifacts dependency
+profile used by `fart-bomb`. Prepared full-pack probes completed locally on
 aarch64 in about four minutes for a 460-mod client world join and 3m37s for
 dedicated-server readiness after dependencies were assembled. Hosted probes of the
 current pack completed the client world join in 7m33s and server readiness in 7m05s. The

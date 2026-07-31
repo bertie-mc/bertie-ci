@@ -15,14 +15,14 @@ source-agnostic probes. These lines are the Linux path; on native Windows there 
 usable Nix, so follow [`docs/windows.md`](docs/windows.md) instead.
 
 ```bash
-nix run github:bertie-mc/bertie-ci/v3.3.3#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
   build --project . --output-dir .bertie-ci/artifact
-nix run github:bertie-mc/bertie-ci/v3.3.3#bertie-ci -- unit-test --project .
-nix run github:bertie-mc/bertie-ci/v3.3.3#bertie-ci -- gametest --project .
-nix run github:bertie-mc/bertie-ci/v3.3.3#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- unit-test --project .
+nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- gametest --project .
+nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
   prepare-mod-instance --project . --artifact .bertie-ci/artifact \
   --side client --output-dir .bertie-ci/client
-nix run github:bertie-mc/bertie-ci/v3.3.3#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
   client-probe --instance .bertie-ci/client/instance.json
 ```
 
@@ -34,7 +34,8 @@ and fails closed unless at least one test is discovered and the GameTest server 
 clean completion. This catches mod-loading crashes that Gradle can otherwise report as a
 successful task.
 `prepare-mod-instance` consumes the already-built JAR and declarative dependency
-fixtures. `client-probe` and `server-probe` consume only a prepared-instance descriptor;
+fixtures sourced from the canonical modpack. `client-probe` and `server-probe` consume
+only a prepared-instance descriptor;
 they do not know whether packwiz or a mod artifact produced it. The probes run:
 
 - the HeadlessHQ `mc-runtime-test` client probe under Xvfb, which loads the real client,
@@ -51,27 +52,34 @@ Mods with external runtime dependencies select one or more declarative packwiz f
 profiles. For example:
 
 ```bash
-nix run github:bertie-mc/bertie-ci/v3.3.3#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
   prepare-mod-instance --project . --artifact .bertie-ci/artifact \
   --fixture forbidden-arcanus,irons-spells --side client \
   --output-dir .bertie-ci/client
 ```
 
-The official packwiz installer resolves pinned metadata into each ephemeral side-specific
-instance. Profiles compose by set union, so combinations do not require a new workflow or
-a project branch in Python. Every client instance also gets the pinned Collective and Hide
-Experimental Warning baseline; `bertie-pack` ships the same warning-hiding mod.
+The Nix lock pins an immutable `bertie-pack` checkout, and fixture profiles select the
+shipping metafiles directly from its `mods/` directory. `bertie-ci` therefore owns only
+the small dependency-set mapping; mod versions, download hashes, filenames, and physical
+sides have one source of truth. The official packwiz installer resolves that metadata
+into each ephemeral side-specific instance. Profiles compose by set union, so
+combinations do not require a new workflow or a project branch in Python. Every client
+instance also gets Collective and Hide Experimental Warning from the same canonical pack
+snapshot.
+
+For example, the `artifacts` profile installs the pack's Artifacts and Curios pins for
+mods such as `fart-bomb`.
 
 From a packwiz checkout, validation never mutates the source tree. Download resolution,
 side preparation, probing, and exports remain separate operations:
 
 ```bash
-nix run github:bertie-mc/bertie-ci/v3.3.3#bertie-ci -- pack-validate --project .
-nix run github:bertie-mc/bertie-ci/v3.3.3#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- pack-validate --project .
+nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
   pack-resolve --project . --side both --output-dir .bertie-ci/resolve
-nix run github:bertie-mc/bertie-ci/v3.3.3#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
   prepare-pack-instance --project . --side client --output-dir .bertie-ci/client
-nix run github:bertie-mc/bertie-ci/v3.3.3#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
   client-probe --instance .bertie-ci/client/instance.json --max-memory 10G
 ```
 
@@ -79,19 +87,19 @@ nix run github:bertie-mc/bertie-ci/v3.3.3#bertie-ci -- \
 
 The command-line operations are also exposed as independent composite actions:
 
-- `bertie-mc/bertie-ci/actions/setup-nix@v3.3.3`
-- `bertie-mc/bertie-ci/actions/build@v3.3.3`
-- `bertie-mc/bertie-ci/actions/unit-test@v3.3.3`
-- `bertie-mc/bertie-ci/actions/gametest@v3.3.3`
-- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.3.3`
-- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.3.3`
-- `bertie-mc/bertie-ci/actions/client-probe@v3.3.3`
-- `bertie-mc/bertie-ci/actions/server-probe@v3.3.3`
-- `bertie-mc/bertie-ci/actions/pack-validate@v3.3.3`
-- `bertie-mc/bertie-ci/actions/pack-resolve@v3.3.3`
-- `bertie-mc/bertie-ci/actions/pack-export-client@v3.3.3`
-- `bertie-mc/bertie-ci/actions/pack-export-server@v3.3.3`
-- `bertie-mc/bertie-ci/actions/github-release@v3.3.3`
+- `bertie-mc/bertie-ci/actions/setup-nix@v3.4.0`
+- `bertie-mc/bertie-ci/actions/build@v3.4.0`
+- `bertie-mc/bertie-ci/actions/unit-test@v3.4.0`
+- `bertie-mc/bertie-ci/actions/gametest@v3.4.0`
+- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.4.0`
+- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.4.0`
+- `bertie-mc/bertie-ci/actions/client-probe@v3.4.0`
+- `bertie-mc/bertie-ci/actions/server-probe@v3.4.0`
+- `bertie-mc/bertie-ci/actions/pack-validate@v3.4.0`
+- `bertie-mc/bertie-ci/actions/pack-resolve@v3.4.0`
+- `bertie-mc/bertie-ci/actions/pack-export-client@v3.4.0`
+- `bertie-mc/bertie-ci/actions/pack-export-server@v3.4.0`
+- `bertie-mc/bertie-ci/actions/github-release@v3.4.0`
 
 Each owns one operation. The build and test actions do not check out source, transfer
 artifacts, or choose job dependencies; the GitHub publisher consumes files and never
@@ -111,24 +119,24 @@ on:
 
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.3.3
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.4.0
 
   unit-test:
-    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.3.3
+    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.4.0
 
   gametest:
-    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.3.3
+    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.4.0
 
   client:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.3.3
+    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.4.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
 
   server:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.3.3
+    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.4.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
@@ -143,13 +151,13 @@ composes `build-mod.yml` followed by `github-release.yml`; it has no second buil
 ```yaml
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.3.3
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.4.0
 
   publish:
     needs: build
     permissions:
       contents: write
-    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.3.3
+    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.4.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
 ```
@@ -183,7 +191,9 @@ not used as a substitute for NeoForge's development-only GameTest runner.
 
 The initial toolchain is Minecraft 1.21.1, NeoForge 21.1.233, Java 21, HeadlessMC
 2.10.0, mc-runtime-test 4.5.1, and packwiz-installer 0.5.14. Third-party JARs are
-fixed-output Nix inputs with verified SHA-256 hashes.
+fixed-output Nix inputs with verified SHA-256 hashes. The canonical `bertie-pack`
+metadata source is also an immutable flake input; updating it is an explicit lock-file
+change.
 
 The staged rollout, dependency-fixture design, and modpack testing levels are documented
 in [`docs/rollout-plan.md`](docs/rollout-plan.md).

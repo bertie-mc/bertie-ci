@@ -25,6 +25,7 @@ class Tools:
     mc_runtime_test: Path
     packwiz_installer: Path
     fixtures: Path
+    fixture_pack: Path | None
     xvfb: Path | None
     glxinfo: Path | None
 
@@ -103,6 +104,7 @@ def load_tools() -> Tools:
         if fixture_root
         else Path(__file__).resolve().parents[2] / "fixtures"
     )
+    fixture_pack_root = os.environ.get("BERTIE_CI_FIXTURE_PACK")
     xvfb = os.environ.get("BERTIE_CI_XVFB")
     glxinfo = os.environ.get("BERTIE_CI_GLXINFO")
     tools = Tools(
@@ -111,6 +113,7 @@ def load_tools() -> Tools:
         mc_runtime_test=Path(runtime_test),
         packwiz_installer=load_packwiz_installer(),
         fixtures=fixtures,
+        fixture_pack=Path(fixture_pack_root) if fixture_pack_root else None,
         xvfb=Path(xvfb) if xvfb else None,
         glxinfo=Path(glxinfo) if glxinfo else None,
     )
@@ -125,5 +128,10 @@ def load_tools() -> Tools:
         if path is not None and not path.is_file():
             raise RuntimeError(f"{name} not found at {path}")
     if not tools.fixtures.is_dir():
-        raise RuntimeError(f"Fixture catalog not found at {tools.fixtures}")
+        raise RuntimeError(f"Fixture profiles not found at {tools.fixtures}")
+    if tools.fixture_pack is not None and not (
+        (tools.fixture_pack / "pack.toml").is_file()
+        and (tools.fixture_pack / "mods").is_dir()
+    ):
+        raise RuntimeError(f"Canonical fixture pack not found at {tools.fixture_pack}")
     return tools

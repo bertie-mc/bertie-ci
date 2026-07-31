@@ -27,16 +27,16 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up dependencies
-        uses: bertie-mc/bertie-ci/actions/setup-nix@v3.3.3
+        uses: bertie-mc/bertie-ci/actions/setup-nix@v3.4.0
 
       - name: Prepare client pack
-        uses: bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.3.3
+        uses: bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.4.0
         with:
           side: client
           output-dir: .bertie-ci/client
 
       - name: Join an integrated world
-        uses: bertie-mc/bertie-ci/actions/client-probe@v3.3.3
+        uses: bertie-mc/bertie-ci/actions/client-probe@v3.4.0
         with:
           instance: .bertie-ci/client/instance.json
           work-dir: .bertie-ci/client
