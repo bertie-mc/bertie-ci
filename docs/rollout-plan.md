@@ -45,14 +45,12 @@ replace one another.
    jobs, and feed the built JAR artifact to separate production probes. No test command
    silently rebuilds the production artifact it was asked to verify.
 
-All 22 custom NeoForge mods compose shared build and runtime jobs. Nineteen baseline
-projects use `v3.1.1`; `frozen-reg-fix` and `primitive-refined` use `v3.3.3`, while
-`fart-bomb` uses `v3.4.0`. The newer releases include the Create fixture, align the
-production runtime with the pack's NeoForge 21.1.233 pin, and source dependency profiles
-from a pinned canonical pack snapshot. Three physically client-only
+All 22 custom NeoForge mods compose shared build and runtime jobs. The organization-wide
+rollout target is `v3.4.1`, which aligns the production runtime with the pack's NeoForge
+21.1.233 pin and sources dependency profiles from a pinned canonical pack snapshot. Three physically client-only
 projects omit the server job; common projects compose both. Dependency-bearing mods use
 the declarative `artifacts`, `create`, `fdlib`, `forbidden-arcanus`, `ftb-filters`, `irons-spells`,
-`immersive-armors`, `rustic-engineer`, and `simply-swords` profiles. Only the two projects that currently
+`immersive-armors`, `refined-storage`, `rustic-engineer`, and `simply-swords` profiles. Only the two projects that currently
 contain registered GameTests compose the separate GameTest job. The three projects with
 JVM test sources compose the separate unit-test job. Release workflows compose the same
 assembly job with an artifact-only GitHub publisher.
@@ -136,7 +134,7 @@ Before broad rollout:
 - the shared flake check is green on GitHub;
 - the `bertie-tiers` local and hosted client/server probes are green;
 - failures point at retained logs and crash reports;
-- the public actions and job workflows are tagged `v3.4.0`, and callers use that
+- the public actions and job workflows are tagged `v3.4.1`, and callers use that
   immutable release rather than bootstrap `@main`;
 - dependency fixtures are hash-pinned and side-aware;
 - a full-pack run has a measured cold-cache and warm-cache duration.
@@ -148,7 +146,8 @@ server does not perform a redundant preliminary launch. `v3.3.3` gives HeadlessM
 internal readiness test the caller's timeout and keeps a successful readiness assertion
 independent of a slow post-`stop` exit. `v3.4.0` removes the duplicated fixture metafiles,
 selects them from a flake-locked `bertie-pack` snapshot, and adds the Artifacts dependency
-profile used by `fart-bomb`. Prepared full-pack probes completed locally on
+profile used by `fart-bomb`. `v3.4.1` adds the Refined Storage profile required by
+`primitive-refined`. Prepared full-pack probes completed locally on
 aarch64 in about four minutes for a 460-mod client world join and 3m37s for
 dedicated-server readiness after dependencies were assembled. Hosted probes of the
 current pack completed the client world join in 7m33s and server readiness in 7m05s. The

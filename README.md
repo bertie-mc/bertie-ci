@@ -15,14 +15,14 @@ source-agnostic probes. These lines are the Linux path; on native Windows there 
 usable Nix, so follow [`docs/windows.md`](docs/windows.md) instead.
 
 ```bash
-nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.1#bertie-ci -- \
   build --project . --output-dir .bertie-ci/artifact
-nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- unit-test --project .
-nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- gametest --project .
-nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.1#bertie-ci -- unit-test --project .
+nix run github:bertie-mc/bertie-ci/v3.4.1#bertie-ci -- gametest --project .
+nix run github:bertie-mc/bertie-ci/v3.4.1#bertie-ci -- \
   prepare-mod-instance --project . --artifact .bertie-ci/artifact \
   --side client --output-dir .bertie-ci/client
-nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.1#bertie-ci -- \
   client-probe --instance .bertie-ci/client/instance.json
 ```
 
@@ -52,7 +52,7 @@ Mods with external runtime dependencies select one or more declarative packwiz f
 profiles. For example:
 
 ```bash
-nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.1#bertie-ci -- \
   prepare-mod-instance --project . --artifact .bertie-ci/artifact \
   --fixture forbidden-arcanus,irons-spells --side client \
   --output-dir .bertie-ci/client
@@ -74,12 +74,12 @@ From a packwiz checkout, validation never mutates the source tree. Download reso
 side preparation, probing, and exports remain separate operations:
 
 ```bash
-nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- pack-validate --project .
-nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.1#bertie-ci -- pack-validate --project .
+nix run github:bertie-mc/bertie-ci/v3.4.1#bertie-ci -- \
   pack-resolve --project . --side both --output-dir .bertie-ci/resolve
-nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.1#bertie-ci -- \
   prepare-pack-instance --project . --side client --output-dir .bertie-ci/client
-nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.4.1#bertie-ci -- \
   client-probe --instance .bertie-ci/client/instance.json --max-memory 10G
 ```
 
@@ -87,19 +87,19 @@ nix run github:bertie-mc/bertie-ci/v3.4.0#bertie-ci -- \
 
 The command-line operations are also exposed as independent composite actions:
 
-- `bertie-mc/bertie-ci/actions/setup-nix@v3.4.0`
-- `bertie-mc/bertie-ci/actions/build@v3.4.0`
-- `bertie-mc/bertie-ci/actions/unit-test@v3.4.0`
-- `bertie-mc/bertie-ci/actions/gametest@v3.4.0`
-- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.4.0`
-- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.4.0`
-- `bertie-mc/bertie-ci/actions/client-probe@v3.4.0`
-- `bertie-mc/bertie-ci/actions/server-probe@v3.4.0`
-- `bertie-mc/bertie-ci/actions/pack-validate@v3.4.0`
-- `bertie-mc/bertie-ci/actions/pack-resolve@v3.4.0`
-- `bertie-mc/bertie-ci/actions/pack-export-client@v3.4.0`
-- `bertie-mc/bertie-ci/actions/pack-export-server@v3.4.0`
-- `bertie-mc/bertie-ci/actions/github-release@v3.4.0`
+- `bertie-mc/bertie-ci/actions/setup-nix@v3.4.1`
+- `bertie-mc/bertie-ci/actions/build@v3.4.1`
+- `bertie-mc/bertie-ci/actions/unit-test@v3.4.1`
+- `bertie-mc/bertie-ci/actions/gametest@v3.4.1`
+- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.4.1`
+- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.4.1`
+- `bertie-mc/bertie-ci/actions/client-probe@v3.4.1`
+- `bertie-mc/bertie-ci/actions/server-probe@v3.4.1`
+- `bertie-mc/bertie-ci/actions/pack-validate@v3.4.1`
+- `bertie-mc/bertie-ci/actions/pack-resolve@v3.4.1`
+- `bertie-mc/bertie-ci/actions/pack-export-client@v3.4.1`
+- `bertie-mc/bertie-ci/actions/pack-export-server@v3.4.1`
+- `bertie-mc/bertie-ci/actions/github-release@v3.4.1`
 
 Each owns one operation. The build and test actions do not check out source, transfer
 artifacts, or choose job dependencies; the GitHub publisher consumes files and never
@@ -123,24 +123,24 @@ on:
 
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.4.0
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.4.1
 
   unit-test:
-    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.4.0
+    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.4.1
 
   gametest:
-    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.4.0
+    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.4.1
 
   client:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.4.0
+    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.4.1
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
 
   server:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.4.0
+    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.4.1
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
@@ -155,13 +155,13 @@ composes `build-mod.yml` followed by `github-release.yml`; it has no second buil
 ```yaml
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.4.0
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.4.1
 
   publish:
     needs: build
     permissions:
       contents: write
-    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.4.0
+    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.4.1
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
 ```
