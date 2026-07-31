@@ -1,0 +1,2 @@
+# Keep text byte-identical across platforms, including Git for Windows.
+* text=auto eol=lf
