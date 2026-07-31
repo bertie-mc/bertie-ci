@@ -75,3 +75,6 @@ is not used as a substitute for NeoForge's development-only GameTest runner.
 The initial toolchain is Minecraft 1.21.1, NeoForge 21.1.217, Java 21, HeadlessMC
 2.10.0, and mc-runtime-test 4.5.1. Third-party JARs are fixed-output Nix inputs with
 verified SHA-256 hashes.
+
+The staged rollout, dependency-fixture design, and modpack testing levels are documented
+in [`docs/rollout-plan.md`](docs/rollout-plan.md).
