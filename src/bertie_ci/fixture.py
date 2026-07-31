@@ -3,20 +3,11 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
-import threading
-from contextlib import contextmanager
-from functools import partial
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Iterator
 
 from .config import Tools, Versions
 from .process import run
-
-
-class _QuietHandler(SimpleHTTPRequestHandler):
-    def log_message(self, format: str, *args: object) -> None:
-        pass
+from .web import serve_directory
 
 
 def _sha256(path: Path) -> str:
@@ -113,36 +104,22 @@ def build_fixture_pack(
     return pack
 
 
-@contextmanager
-def _serve(directory: Path) -> Iterator[str]:
-    handler = partial(_QuietHandler, directory=str(directory))
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        port = server.server_address[1]
-        yield f"http://127.0.0.1:{port}/pack.toml"
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=5)
-
-
 def install_fixtures(
     tools: Tools,
     versions: Versions,
-    runtime: Path,
+    game_dir: Path,
+    work: Path,
     profiles: list[str],
     side: str,
 ) -> None:
     if not profiles and not _load_defaults(tools.fixtures, side):
         return
     pack = build_fixture_pack(
-        tools.fixtures, runtime / "fixture-pack", profiles, versions, side
+        tools.fixtures, work / "fixture-pack", profiles, versions, side
     )
     selected = ", ".join(profiles) if profiles else "defaults only"
     print(f"Installing fixture profiles for {side}: {selected}", flush=True)
-    with _serve(pack.parent) as url:
+    with serve_directory(pack.parent) as url:
         run(
             [
                 tools.java,
@@ -155,7 +132,7 @@ def install_fixtures(
                 side,
                 url,
             ],
-            cwd=runtime / "run",
-            log=runtime / "fixture-install.log",
+            cwd=game_dir,
+            log=work / "fixture-install.log",
             stream_output=False,
         )

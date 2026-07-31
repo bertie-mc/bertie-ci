@@ -29,7 +29,7 @@
           };
           bertie-ci = pkgs.python3Packages.buildPythonApplication {
             pname = "bertie-ci";
-            version = "3.2.1";
+            version = "3.3.0";
             pyproject = true;
             src = ./.;
             build-system = [ pkgs.python3Packages.setuptools ];
@@ -43,6 +43,7 @@
                     pkgs.coreutils
                     pkgs.jdk21_headless
                     pkgs.mesa-demos
+                    pkgs.packwiz
                     pkgs.xorg-server
                   ]
                 } \
@@ -51,6 +52,7 @@
                 --set-default BERTIE_CI_HEADLESSMC_JAR ${headlessmc} \
                 --set-default BERTIE_CI_MCRT_JAR ${mcRuntimeTest} \
                 --set-default BERTIE_CI_PACKWIZ_INSTALLER_JAR ${packwizInstaller} \
+                --set-default BERTIE_CI_PACKWIZ ${pkgs.packwiz}/bin/packwiz \
                 --set-default BERTIE_CI_FIXTURES ${./fixtures} \
                 --set-default BERTIE_CI_JAVA_HOME ${pkgs.jdk21_headless} \
                 --set-default BERTIE_CI_XVFB ${pkgs.xorg-server}/bin/Xvfb \

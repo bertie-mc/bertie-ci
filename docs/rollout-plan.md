@@ -49,7 +49,7 @@ All 21 custom NeoForge mods compose shared build and runtime jobs. The original 
 production runtime with the pack's NeoForge 21.1.233 pin. Three physically client-only
 projects omit the server job; common projects compose both. Dependency-bearing mods use
 the declarative `create`, `fdlib`, `forbidden-arcanus`, `ftb-filters`, `irons-spells`,
-`rustic-engineer`, and `simply-swords` profiles. Only the two projects that currently
+`immersive-armors`, `rustic-engineer`, and `simply-swords` profiles. Only the two projects that currently
 contain registered GameTests compose the separate GameTest job. The three projects with
 JVM test sources compose the separate unit-test job. Release workflows compose the same
 assembly job with an artifact-only GitHub publisher.
@@ -82,7 +82,7 @@ independent of title-screen replacements and proves resource reload, integrated-
 startup, world generation, player login, and rendering. The timeout remains an explicit
 failure boundary for hidden dialogs or loading screens.
 
-### Next implementation slice
+### Prepared-instance implementation
 
 Use a prepared instance as the boundary between assembly and assertions. Do not add a
 `--pack` branch to the existing mod-artifact runner and do not make one action build,
@@ -133,11 +133,15 @@ Before broad rollout:
 - the shared flake check is green on GitHub;
 - the `bertie-tiers` local and hosted client/server probes are green;
 - failures point at retained logs and crash reports;
-- the public actions and job workflows are tagged `v3.2.1`, and callers use that
+- the public actions and job workflows are tagged `v3.3.0`, and callers use that
   immutable release rather than bootstrap `@main`;
 - dependency fixtures are hash-pinned and side-aware;
 - a full-pack run has a measured cold-cache and warm-cache duration.
 
-The first five gates are complete. Full-pack timing and rollout remain the next phase;
-the earlier title-menu experiment is not the baseline because a UI onboarding screen
-blocked it without proving whether an integrated world could load.
+The first four gates are complete locally. Publishing `v3.3.0` completes the shared-action
+gate; full-pack timing and rollout remain the next phase. The earlier title-menu experiment
+is not the baseline because a UI onboarding screen blocked it without proving whether an
+integrated world could load. The first prepared full-pack world-join run already improved
+on that signal: it reached the first client tick and exposed Immersive Armors attempting a
+late armor-material registration, a product failure that a title-menu assertion would have
+missed.

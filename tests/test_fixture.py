@@ -69,9 +69,7 @@ def test_bundled_fixture_profiles_reference_pinned_catalog_entries() -> None:
         (BUNDLED_FIXTURES / "defaults.json").read_text(encoding="utf-8")
     )
     names = {
-        name
-        for entries in [*profiles.values(), *defaults.values()]
-        for name in entries
+        name for entries in [*profiles.values(), *defaults.values()] for name in entries
     }
 
     for name in names:

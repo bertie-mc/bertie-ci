@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,32 @@ class Tools:
     fixtures: Path
     xvfb: Path | None
     glxinfo: Path | None
+
+
+def load_packwiz() -> Path:
+    configured = os.environ.get("BERTIE_CI_PACKWIZ")
+    executable = Path(configured) if configured else None
+    if executable is None:
+        discovered = shutil.which("packwiz")
+        executable = Path(discovered) if discovered else None
+    if executable is None or not executable.is_file():
+        raise RuntimeError(
+            "packwiz is unavailable; set BERTIE_CI_PACKWIZ or run through the Nix flake"
+        )
+    return executable
+
+
+def load_packwiz_installer() -> Path:
+    configured = os.environ.get("BERTIE_CI_PACKWIZ_INSTALLER_JAR")
+    if not configured:
+        raise RuntimeError(
+            "packwiz-installer is unavailable; set BERTIE_CI_PACKWIZ_INSTALLER_JAR "
+            "or run through the Nix flake"
+        )
+    installer = Path(configured)
+    if not installer.is_file():
+        raise RuntimeError(f"packwiz-installer not found at {installer}")
+    return installer
 
 
 def _versions_path() -> Path:
@@ -63,8 +90,7 @@ def load_java() -> Path:
 def load_tools() -> Tools:
     headlessmc = os.environ.get("BERTIE_CI_HEADLESSMC_JAR")
     runtime_test = os.environ.get("BERTIE_CI_MCRT_JAR")
-    packwiz_installer = os.environ.get("BERTIE_CI_PACKWIZ_INSTALLER_JAR")
-    if not headlessmc or not runtime_test or not packwiz_installer:
+    if not headlessmc or not runtime_test:
         raise RuntimeError(
             "Runtime artifacts are unavailable; set BERTIE_CI_HEADLESSMC_JAR, "
             "BERTIE_CI_MCRT_JAR, and BERTIE_CI_PACKWIZ_INSTALLER_JAR or run through "
@@ -83,7 +109,7 @@ def load_tools() -> Tools:
         java=load_java(),
         headlessmc=Path(headlessmc),
         mc_runtime_test=Path(runtime_test),
-        packwiz_installer=Path(packwiz_installer),
+        packwiz_installer=load_packwiz_installer(),
         fixtures=fixtures,
         xvfb=Path(xvfb) if xvfb else None,
         glxinfo=Path(glxinfo) if glxinfo else None,

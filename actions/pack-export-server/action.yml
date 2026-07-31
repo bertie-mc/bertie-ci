@@ -1,0 +1,23 @@
+name: Export server pack
+description: Export a no-mod-JAR server installer archive from a canonical packwiz project
+
+inputs:
+  project:
+    description: Packwiz project path
+    required: false
+    default: .
+  output:
+    description: Output .zip path
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Export server pack
+      shell: bash
+      env:
+        BERTIE_CI_PROJECT: ${{ inputs.project }}
+        BERTIE_CI_OUTPUT: ${{ inputs.output }}
+      run: >-
+        nix run "${GITHUB_ACTION_PATH}/../..#bertie-ci" --
+        pack-export-server --project "$BERTIE_CI_PROJECT" --output "$BERTIE_CI_OUTPUT"

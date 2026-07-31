@@ -2,38 +2,77 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 from .artifact import find_artifact, stage_artifact
-from .config import load_java, load_tools, load_versions
+from .config import (
+    load_java,
+    load_packwiz,
+    load_packwiz_installer,
+    load_tools,
+    load_versions,
+)
 from .gradle import assemble_mod, run_gametests, run_unit_tests
-from .runtime import Context, run_client, run_server
+from .instance import (
+    load_instance,
+    prepare_mod_instance,
+    prepare_pack_instance,
+    resolve_pack,
+)
+from .pack import export_client_pack, export_server_pack, validate_pack
+from .runtime import ProbeContext, run_client_probe, run_server_probe
 
 
-def _add_project(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--project", type=Path, default=Path.cwd(), help="mod checkout")
+def _add_project(
+    parser: argparse.ArgumentParser, help_text: str = "project checkout"
+) -> None:
+    parser.add_argument("--project", type=Path, default=Path.cwd(), help=help_text)
 
 
-def _add_runtime(parser: argparse.ArgumentParser, default_timeout: int) -> None:
-    _add_project(parser)
-    parser.add_argument(
-        "--artifact",
-        type=Path,
-        help="runtime JAR or a directory containing exactly one runtime JAR",
-    )
+def _add_fixture(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--fixture",
         action="append",
         default=[],
         help="comma-separated fixture profiles; may be repeated",
     )
+
+
+def _memory(value: str) -> str:
+    if not re.fullmatch(r"[1-9][0-9]*[mMgG]", value):
+        raise argparse.ArgumentTypeError("memory must look like 4G or 1024M")
+    return value.upper()
+
+
+def _add_probe(
+    parser: argparse.ArgumentParser, default_timeout: int, default_memory: str
+) -> None:
+    parser.add_argument("--instance", type=Path, required=True)
     parser.add_argument("--work-dir", type=Path)
     parser.add_argument("--cache-dir", type=Path)
     parser.add_argument(
         "--timeout", type=int, default=default_timeout, metavar="SECONDS"
     )
+    parser.add_argument("--max-memory", type=_memory, default=default_memory)
+
+
+def _add_legacy_runtime(parser: argparse.ArgumentParser, default_timeout: int) -> None:
+    _add_project(parser, "mod checkout")
+    parser.add_argument(
+        "--artifact",
+        type=Path,
+        help="runtime JAR or a directory containing exactly one runtime JAR",
+    )
+    _add_fixture(parser)
+    parser.add_argument("--work-dir", type=Path)
+    parser.add_argument("--cache-dir", type=Path)
+    parser.add_argument(
+        "--timeout", type=int, default=default_timeout, metavar="SECONDS"
+    )
+    parser.add_argument("--max-memory", type=_memory, default="4G")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -44,7 +83,7 @@ def _parser() -> argparse.ArgumentParser:
     subcommands = parser.add_subparsers(dest="command", required=True)
 
     build = subcommands.add_parser("build", help="build a NeoForge mod JAR")
-    _add_project(build)
+    _add_project(build, "mod checkout")
     build.add_argument(
         "--output-dir",
         type=Path,
@@ -54,29 +93,103 @@ def _parser() -> argparse.ArgumentParser:
     unit_test = subcommands.add_parser(
         "unit-test", help="run the mod's ordinary JVM unit tests"
     )
-    _add_project(unit_test)
+    _add_project(unit_test, "mod checkout")
 
     gametest = subcommands.add_parser(
         "gametest", help="run NeoForge GameTests in the Gradle development runtime"
     )
-    _add_project(gametest)
+    _add_project(gametest, "mod checkout")
     gametest.add_argument("--work-dir", type=Path)
     gametest.add_argument("--timeout", type=int, default=15 * 60, metavar="SECONDS")
 
-    client = subcommands.add_parser(
-        "client", help="test a built JAR with the client world-join probe"
+    prepare_mod = subcommands.add_parser(
+        "prepare-mod-instance",
+        help="assemble a side-specific instance around a built mod",
     )
-    _add_runtime(client, 25 * 60)
+    _add_project(prepare_mod, "mod checkout")
+    prepare_mod.add_argument("--artifact", type=Path)
+    _add_fixture(prepare_mod)
+    prepare_mod.add_argument("--side", choices=("client", "server"), required=True)
+    prepare_mod.add_argument("--output-dir", type=Path, required=True)
+
+    prepare_pack = subcommands.add_parser(
+        "prepare-pack-instance", help="install one side of a canonical packwiz pack"
+    )
+    _add_project(prepare_pack, "packwiz checkout")
+    prepare_pack.add_argument("--side", choices=("client", "server"), required=True)
+    prepare_pack.add_argument("--output-dir", type=Path, required=True)
+
+    client_probe = subcommands.add_parser(
+        "client-probe", help="run a world-join assertion against a prepared instance"
+    )
+    _add_probe(client_probe, 25 * 60, "4G")
+
+    server_probe = subcommands.add_parser(
+        "server-probe", help="run a readiness assertion against a prepared instance"
+    )
+    _add_probe(server_probe, 15 * 60, "3G")
+
+    pack_validate = subcommands.add_parser(
+        "pack-validate", help="validate a packwiz checkout without modifying it"
+    )
+    _add_project(pack_validate, "packwiz checkout")
+
+    pack_resolve = subcommands.add_parser(
+        "pack-resolve", help="verify that every selected pack download resolves"
+    )
+    _add_project(pack_resolve, "packwiz checkout")
+    pack_resolve.add_argument(
+        "--side", choices=("client", "server", "both"), default="both"
+    )
+    pack_resolve.add_argument("--output-dir", type=Path, required=True)
+
+    pack_export_client = subcommands.add_parser(
+        "pack-export-client", help="export a Modrinth client pack"
+    )
+    _add_project(pack_export_client, "packwiz checkout")
+    pack_export_client.add_argument("--output", type=Path, required=True)
+
+    pack_export_server = subcommands.add_parser(
+        "pack-export-server", help="export a no-mod-JAR server installer archive"
+    )
+    _add_project(pack_export_server, "packwiz checkout")
+    pack_export_server.add_argument("--output", type=Path, required=True)
+
+    client = subcommands.add_parser(
+        "client", help="compatibility wrapper: prepare a mod and run client-probe"
+    )
+    _add_legacy_runtime(client, 25 * 60)
 
     server = subcommands.add_parser(
-        "server", help="test a built JAR with the dedicated-server readiness probe"
+        "server", help="compatibility wrapper: prepare a mod and run server-probe"
     )
-    _add_runtime(server, 15 * 60)
+    _add_legacy_runtime(server, 15 * 60)
     return parser
 
 
 def _project(args: argparse.Namespace) -> Path:
     return args.project.resolve(strict=True)
+
+
+def _under_project(project: Path, path: Path) -> Path:
+    return path.resolve() if path.is_absolute() else (project / path).resolve()
+
+
+def _cache(path: Path | None, project: Path | None = None) -> Path:
+    default = (
+        Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "bertie-ci"
+    )
+    if path is None:
+        return default.resolve()
+    if path.is_absolute() or project is None:
+        return path.resolve()
+    return (project / path).resolve()
+
+
+def _fixture_profiles(values: list[str]) -> list[str]:
+    return [
+        name.strip() for value in values for name in value.split(",") if name.strip()
+    ]
 
 
 def _run_build(args: argparse.Namespace) -> None:
@@ -85,17 +198,13 @@ def _run_build(args: argparse.Namespace) -> None:
     assemble_mod(project, java.parent.parent)
     artifact = find_artifact(project, None)
     if args.output_dir is not None:
-        output_dir = args.output_dir
-        if not output_dir.is_absolute():
-            output_dir = project / output_dir
-        output_dir = output_dir.resolve()
-        artifact = stage_artifact(artifact, output_dir)
+        artifact = stage_artifact(artifact, _under_project(project, args.output_dir))
     print(f"Built artifact: {artifact}", flush=True)
 
 
 def _run_gametest(args: argparse.Namespace) -> None:
     project = _project(args)
-    work = (args.work_dir or project / ".bertie-ci").resolve()
+    work = _under_project(project, args.work_dir or Path(".bertie-ci"))
     java = load_java()
     count = run_gametests(project, java.parent.parent, work, args.timeout)
     print(
@@ -111,33 +220,47 @@ def _run_unit_test(args: argparse.Namespace) -> None:
     print("JVM unit tests passed.", flush=True)
 
 
-def _fixture_profiles(values: list[str]) -> list[str]:
-    return [
-        name.strip() for value in values for name in value.split(",") if name.strip()
-    ]
-
-
-def _run_runtime(args: argparse.Namespace, side: str) -> None:
-    project = _project(args)
-    work = (args.work_dir or project / ".bertie-ci").resolve()
-    cache_default = (
-        Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "bertie-ci"
+def _probe_context(
+    descriptor: Path, work: Path | None, cache: Path | None
+) -> ProbeContext:
+    descriptor = descriptor.resolve(strict=True)
+    instance = load_instance(descriptor)
+    probe_work = (work or descriptor.parent).resolve()
+    probe_cache = _cache(cache)
+    probe_cache.mkdir(parents=True, exist_ok=True)
+    return ProbeContext(
+        probe_work, probe_cache, instance, load_versions(), load_tools()
     )
-    cache = (args.cache_dir or cache_default).resolve()
-    work.mkdir(parents=True, exist_ok=True)
-    cache.mkdir(parents=True, exist_ok=True)
 
-    artifact = find_artifact(project, args.artifact)
-    context = Context(work, cache, artifact, load_versions(), load_tools())
-    profiles = _fixture_profiles(args.fixture)
-    print(f"Using mod artifact: {artifact}", flush=True)
-    print(f"Runtime directory: {work}", flush=True)
-    print(f"Minecraft cache: {cache}", flush=True)
 
+def _run_probe(args: argparse.Namespace, side: str) -> None:
+    context = _probe_context(args.instance, args.work_dir, args.cache_dir)
     if side == "client":
-        run_client(context, profiles, args.timeout)
+        run_client_probe(context, args.timeout, args.max_memory)
     else:
-        run_server(context, profiles, args.timeout)
+        run_server_probe(context, args.timeout, args.max_memory)
+
+
+def _run_legacy(args: argparse.Namespace, side: str) -> None:
+    project = _project(args)
+    output = _under_project(project, args.work_dir or Path(".bertie-ci") / side)
+    artifact = args.artifact
+    if artifact is not None and not artifact.is_absolute():
+        artifact = project / artifact
+    descriptor = prepare_mod_instance(
+        project,
+        artifact,
+        _fixture_profiles(args.fixture),
+        side,
+        output,
+        load_versions(),
+        load_tools(),
+    )
+    context = _probe_context(descriptor, output, _cache(args.cache_dir, project))
+    if side == "client":
+        run_client_probe(context, args.timeout, args.max_memory)
+    else:
+        run_server_probe(context, args.timeout, args.max_memory)
 
 
 def tolerate_unencodable_output() -> None:
@@ -165,8 +288,66 @@ def main() -> None:
                 _run_unit_test(args)
             case "gametest":
                 _run_gametest(args)
+            case "prepare-mod-instance":
+                project = _project(args)
+                artifact = args.artifact
+                if artifact is not None and not artifact.is_absolute():
+                    artifact = project / artifact
+                descriptor = prepare_mod_instance(
+                    project,
+                    artifact,
+                    _fixture_profiles(args.fixture),
+                    args.side,
+                    _under_project(project, args.output_dir),
+                    load_versions(),
+                    load_tools(),
+                )
+                print(f"Prepared instance: {descriptor}", flush=True)
+            case "prepare-pack-instance":
+                project = _project(args)
+                descriptor = prepare_pack_instance(
+                    project,
+                    args.side,
+                    _under_project(project, args.output_dir),
+                    load_tools(),
+                )
+                print(f"Prepared instance: {descriptor}", flush=True)
+            case "client-probe" | "server-probe":
+                _run_probe(args, args.command.removesuffix("-probe"))
+            case "pack-validate":
+                summary = validate_pack(_project(args), load_packwiz())
+                print(
+                    "Pack valid: "
+                    f"{summary.metafiles} metafiles "
+                    f"({summary.client} client, {summary.server} server, {summary.both} both), "
+                    f"{summary.config_files} config files",
+                    flush=True,
+                )
+            case "pack-resolve":
+                project = _project(args)
+                count = resolve_pack(
+                    project,
+                    args.side,
+                    _under_project(project, args.output_dir),
+                    load_tools(),
+                )
+                print(f"Resolved {count} mod JARs for side={args.side}", flush=True)
+            case "pack-export-client":
+                project = _project(args)
+                output = export_client_pack(
+                    project, _under_project(project, args.output), load_packwiz()
+                )
+                print(f"Exported client pack: {output}", flush=True)
+            case "pack-export-server":
+                project = _project(args)
+                output = export_server_pack(
+                    project,
+                    _under_project(project, args.output),
+                    load_packwiz_installer(),
+                )
+                print(f"Exported server pack: {output}", flush=True)
             case "client" | "server":
-                _run_runtime(args, args.command)
+                _run_legacy(args, args.command)
     except (OSError, RuntimeError, subprocess.SubprocessError) as error:
         parser.exit(2, f"bertie-ci: {error}\n")
 

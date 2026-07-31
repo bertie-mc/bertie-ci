@@ -10,7 +10,7 @@ from typing import Any, Callable
 
 from .config import Tools, Versions
 from .display import virtual_display
-from .fixture import install_fixtures
+from .instance import Instance
 from .process import run
 from .properties import write_properties
 
@@ -33,27 +33,30 @@ def _remove_tree(path: Path) -> None:
 
 
 @dataclass(frozen=True)
-class Context:
+class ProbeContext:
     work: Path
     cache: Path
-    artifact: Path
-    versions: Versions
+    instance: Instance
+    supported: Versions
     tools: Tools
 
 
-def _reset_runtime(work: Path, name: str) -> Path:
-    runtime = (work / name).resolve()
-    if runtime.parent != work.resolve():
-        raise RuntimeError(f"Unsafe runtime directory: {runtime}")
-    for child in (runtime / "run", runtime / "HeadlessMC"):
-        if child.exists():
-            _remove_tree(child)
-    log = runtime / "runtime.log"
-    if log.exists():
-        log.unlink()
-    (runtime / "run" / "mods").mkdir(parents=True, exist_ok=True)
-    (runtime / "HeadlessMC").mkdir(parents=True, exist_ok=True)
-    return runtime
+def _reset_probe(work: Path) -> Path:
+    work = work.resolve()
+    work.mkdir(parents=True, exist_ok=True)
+    control = work / "HeadlessMC"
+    if control.exists():
+        _remove_tree(control)
+    control.mkdir()
+    for name in (
+        "runtime.log",
+        "minecraft-download.log",
+        "neoforge-client-install.log",
+        "neoforge-server-install.log",
+        "xvfb.log",
+    ):
+        (work / name).unlink(missing_ok=True)
+    return work
 
 
 def _write(path: Path, lines: list[str]) -> None:
@@ -61,26 +64,42 @@ def _write(path: Path, lines: list[str]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _java(context: Context) -> list[Path | str]:
+def _java(context: ProbeContext) -> list[Path | str]:
     return [context.tools.java, "-jar", context.tools.headlessmc]
 
 
-def _install_client(context: Context, runtime: Path, minecraft: Path) -> None:
+def _assert_compatible(context: ProbeContext, side: str) -> None:
+    instance = context.instance
+    if instance.side != side:
+        raise RuntimeError(
+            f"{side} probe cannot consume a {instance.side} prepared instance"
+        )
+    if instance.loader != "neoforge":
+        raise RuntimeError(f"Unsupported loader: {instance.loader}")
+    expected = (context.supported.minecraft, context.supported.neoforge)
+    actual = (instance.minecraft, instance.loader_version)
+    if actual != expected:
+        raise RuntimeError(
+            "Prepared instance uses Minecraft/NeoForge "
+            f"{actual[0]}/{actual[1]}, but this bertie-ci release supports "
+            f"{expected[0]}/{expected[1]}"
+        )
+
+
+def _install_client(context: ProbeContext, minecraft: Path) -> None:
+    instance = context.instance
     vanilla_json = (
-        minecraft
-        / "versions"
-        / context.versions.minecraft
-        / f"{context.versions.minecraft}.json"
+        minecraft / "versions" / instance.minecraft / f"{instance.minecraft}.json"
     )
     if not vanilla_json.is_file():
         run(
-            [*_java(context), "--command", "download", context.versions.minecraft],
-            cwd=runtime,
-            log=runtime / "minecraft-download.log",
+            [*_java(context), "--command", "download", instance.minecraft],
+            cwd=context.work,
+            log=context.work / "minecraft-download.log",
             stream_output=False,
         )
 
-    loader = f"neoforge-{context.versions.neoforge}"
+    loader = f"neoforge-{instance.loader_version}"
     loader_json = minecraft / "versions" / loader / f"{loader}.json"
     if not loader_json.is_file():
         run(
@@ -88,36 +107,41 @@ def _install_client(context: Context, runtime: Path, minecraft: Path) -> None:
                 *_java(context),
                 "--command",
                 "neoforge",
-                context.versions.minecraft,
+                instance.minecraft,
                 "--uid",
-                context.versions.neoforge,
+                instance.loader_version,
             ],
-            cwd=runtime,
-            log=runtime / "neoforge-client-install.log",
+            cwd=context.work,
+            log=context.work / "neoforge-client-install.log",
             stream_output=False,
         )
 
 
-def run_client(
-    context: Context, fixture_profiles: list[str], timeout_seconds: int
+def _set_options(path: Path, values: dict[str, str]) -> None:
+    lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+    retained = [line for line in lines if line.partition(":")[0] not in values]
+    retained.extend(f"{key}:{value}" for key, value in values.items())
+    _write(path, retained)
+
+
+def run_client_probe(
+    context: ProbeContext, timeout_seconds: int, max_memory: str
 ) -> None:
-    runtime = _reset_runtime(context.work, "client")
+    _assert_compatible(context, "client")
+    work = _reset_probe(context.work)
+    game_dir = context.instance.game_dir
+    mods = game_dir / "mods"
+    mods.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(context.tools.mc_runtime_test, mods / "bertie-ci-mc-runtime-test.jar")
     minecraft = (context.cache / "minecraft").resolve()
     minecraft.mkdir(parents=True, exist_ok=True)
-    install_fixtures(
-        context.tools, context.versions, runtime, fixture_profiles, "client"
-    )
-    shutil.copy2(context.artifact, runtime / "run" / "mods" / "mod-under-test.jar")
-    shutil.copy2(
-        context.tools.mc_runtime_test, runtime / "run" / "mods" / "mc-runtime-test.jar"
-    )
 
     write_properties(
-        runtime / "HeadlessMC" / "config.properties",
+        work / "HeadlessMC" / "config.properties",
         {
             "hmc.java.versions": context.tools.java,
-            "hmc.jvmargs": "-Xms512M -Xmx4G -DMcRuntimeGameTestMinExpectedGameTests=0",
-            "hmc.gamedir": runtime / "run",
+            "hmc.jvmargs": f"-Xms512M -Xmx{max_memory} -DMcRuntimeGameTestMinExpectedGameTests=0",
+            "hmc.gamedir": game_dir,
             "hmc.mcdir": minecraft,
             "hmc.offline": "true",
             "hmc.assets.dummy": "true",
@@ -129,55 +153,48 @@ def run_client(
             "hmc.loglevel": "INFO",
         },
     )
-    _write(
-        runtime / "run" / "options.txt",
-        ["onboardAccessibility:false", "pauseOnLostFocus:false"],
+    _set_options(
+        game_dir / "options.txt",
+        {"onboardAccessibility": "false", "pauseOnLostFocus": "false"},
     )
     # NeoForge's early-loading splash is a second GL surface the world-join probe
-    # never needs. FML corrects this file with its remaining defaults on startup.
-    _write(runtime / "run" / "config" / "fml.toml", ["earlyWindowControl = false"])
-    _install_client(context, runtime, minecraft)
+    # never needs. Do not replace a pack's existing FML configuration.
+    fml_config = game_dir / "config" / "fml.toml"
+    if not fml_config.is_file():
+        _write(fml_config, ["earlyWindowControl = false"])
+    _install_client(context, minecraft)
 
-    loader = f"^neoforge-{context.versions.neoforge}$"
-    command: list[str | Path] = [
-        *_java(context),
-        "--command",
-        "launch",
-        loader,
-        "-regex",
-    ]
+    loader = f"^neoforge-{context.instance.loader_version}$"
     print("Launching client world-join probe", flush=True)
-    with virtual_display(context.tools, runtime / "xvfb.log") as environment:
+    with virtual_display(context.tools, work / "xvfb.log") as environment:
         run(
-            command,
-            cwd=runtime,
+            [*_java(context), "--command", "launch", loader, "-regex"],
+            cwd=work,
             env=environment,
-            log=runtime / "runtime.log",
+            log=work / "runtime.log",
             timeout_seconds=timeout_seconds,
         )
-    print(f"Client world-join probe passed. Logs: {runtime}", flush=True)
+    print(f"Client world-join probe passed. Logs: {work}", flush=True)
 
 
-def run_server(
-    context: Context, fixture_profiles: list[str], timeout_seconds: int
+def run_server_probe(
+    context: ProbeContext, timeout_seconds: int, max_memory: str
 ) -> None:
-    runtime = _reset_runtime(context.work, "server")
+    _assert_compatible(context, "server")
+    work = _reset_probe(context.work)
+    game_dir = context.instance.game_dir
     minecraft = (context.cache / "minecraft").resolve()
     minecraft.mkdir(parents=True, exist_ok=True)
-    install_fixtures(
-        context.tools, context.versions, runtime, fixture_profiles, "server"
-    )
-    shutil.copy2(context.artifact, runtime / "run" / "mods" / "mod-under-test.jar")
 
     write_properties(
-        runtime / "HeadlessMC" / "config.properties",
+        work / "HeadlessMC" / "config.properties",
         {
             "hmc.java.versions": context.tools.java,
-            "hmc.jvmargs": "-Xms512M -Xmx3G",
+            "hmc.jvmargs": f"-Xms512M -Xmx{max_memory}",
             "hmc.mcdir": minecraft,
-            "hmc.server.test.dir": runtime / "run",
-            "hmc.server.test.type": "neoforge",
-            "hmc.server.test.version": context.versions.minecraft,
+            "hmc.server.test.dir": game_dir,
+            "hmc.server.test.type": context.instance.loader,
+            "hmc.server.test.version": context.instance.minecraft,
             "hmc.offline": "true",
             "hmc.jline.enabled": "false",
             "hmc.rethrow.launch.exceptions": "true",
@@ -192,27 +209,30 @@ def run_server(
         },
     )
 
-    print(f"Installing exact NeoForge server {context.versions.neoforge}", flush=True)
+    print(
+        f"Installing exact NeoForge server {context.instance.loader_version}",
+        flush=True,
+    )
     run(
         [
             *_java(context),
             "--command",
             "server",
             "add",
-            "neoforge",
-            context.versions.minecraft,
+            context.instance.loader,
+            context.instance.minecraft,
             "bertie-ci",
-            context.versions.neoforge,
+            context.instance.loader_version,
         ],
-        cwd=runtime,
-        log=runtime / "neoforge-server-install.log",
+        cwd=work,
+        log=work / "neoforge-server-install.log",
         stream_output=False,
     )
     print("Launching dedicated-server readiness probe", flush=True)
     run(
         [*_java(context), "--command", "server", "launch", "0", "-id"],
-        cwd=runtime,
-        log=runtime / "runtime.log",
+        cwd=work,
+        log=work / "runtime.log",
         timeout_seconds=timeout_seconds,
     )
-    print(f"Dedicated-server probe passed. Logs: {runtime}", flush=True)
+    print(f"Dedicated-server probe passed. Logs: {work}", flush=True)

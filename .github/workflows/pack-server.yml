@@ -1,55 +1,53 @@
-name: Dedicated server readiness
+name: Pack dedicated server
 
 on:
   workflow_call:
     inputs:
-      artifact-name:
-        description: Uploaded mod JAR artifact to test
-        required: true
-        type: string
-      fixture:
-        description: Comma-separated dependency fixture profiles
+      timeout:
+        description: Probe timeout in seconds
+        required: false
+        type: number
+        default: 4500
+      max-memory:
+        description: Maximum Java heap
         required: false
         type: string
-        default: ""
+        default: 8G
 
 permissions:
   contents: read
 
 jobs:
   server:
-    name: Dedicated server
+    name: Pack dedicated server
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 90
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Set up dependencies
         uses: bertie-mc/bertie-ci/actions/setup-nix@v3.3.0
 
-      - name: Download built mod
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - name: Prepare server pack
+        uses: bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.3.0
         with:
-          name: ${{ inputs.artifact-name }}
-          path: .bertie-ci/artifact
-
-      - name: Prepare server instance
-        uses: bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.3.0
-        with:
-          artifact: .bertie-ci/artifact
-          fixture: ${{ inputs.fixture }}
           side: server
           output-dir: .bertie-ci/server
 
-      - name: Test server
+      - name: Reach dedicated-server readiness
         uses: bertie-mc/bertie-ci/actions/server-probe@v3.3.0
         with:
           instance: .bertie-ci/server/instance.json
           work-dir: .bertie-ci/server
+          timeout: ${{ inputs.timeout }}
+          max-memory: ${{ inputs.max-memory }}
 
       - name: Upload server logs
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: minecraft-server-${{ github.repository_id }}-${{ github.sha }}
+          name: pack-server-${{ github.repository_id }}-${{ github.sha }}
           path: |
             .bertie-ci/server/**/*.log
             .bertie-ci/server/**/crash-reports/

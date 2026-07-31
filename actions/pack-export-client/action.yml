@@ -1,0 +1,23 @@
+name: Export client pack
+description: Export a canonical packwiz project as a Modrinth pack
+
+inputs:
+  project:
+    description: Packwiz project path
+    required: false
+    default: .
+  output:
+    description: Output .mrpack path
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Export client pack
+      shell: bash
+      env:
+        BERTIE_CI_PROJECT: ${{ inputs.project }}
+        BERTIE_CI_OUTPUT: ${{ inputs.output }}
+      run: >-
+        nix run "${GITHUB_ACTION_PATH}/../..#bertie-ci" --
+        pack-export-client --project "$BERTIE_CI_PROJECT" --output "$BERTIE_CI_OUTPUT"
