@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from bertie_ci.artifact import find_artifact, stage_artifact
 from bertie_ci.gradle import verify_gametest_log
 
 
@@ -43,3 +44,37 @@ def test_verify_gametest_log_fails_closed(
 ) -> None:
     with pytest.raises(RuntimeError, match=message):
         verify_gametest_log(_log(tmp_path, text))
+
+
+def test_find_artifact_ignores_documentation_jars(tmp_path: Path) -> None:
+    libraries = tmp_path / "build" / "libs"
+    libraries.mkdir(parents=True)
+    runtime = libraries / "example-1.0.0.jar"
+    runtime.touch()
+    (libraries / "example-1.0.0-sources.jar").touch()
+    (libraries / "example-1.0.0-javadoc.jar").touch()
+
+    assert find_artifact(tmp_path, None) == runtime
+
+
+def test_stage_artifact_preserves_release_filename(tmp_path: Path) -> None:
+    runtime = tmp_path / "build" / "libs" / "example-1.0.0.jar"
+    runtime.parent.mkdir(parents=True)
+    runtime.write_bytes(b"jar")
+
+    staged = stage_artifact(runtime, tmp_path / ".bertie-ci" / "artifact")
+
+    assert staged.name == runtime.name
+    assert staged.read_bytes() == b"jar"
+
+
+def test_stage_artifact_rejects_ambiguous_output(tmp_path: Path) -> None:
+    runtime = tmp_path / "build" / "libs" / "example-1.0.0.jar"
+    runtime.parent.mkdir(parents=True)
+    runtime.touch()
+    output = tmp_path / ".bertie-ci" / "artifact"
+    output.mkdir(parents=True)
+    (output / "old-version.jar").touch()
+
+    with pytest.raises(RuntimeError, match="contains other JARs"):
+        stage_artifact(runtime, output)

@@ -3,8 +3,9 @@
 ## Decisions
 
 `bertie-ci` is the test product. Its build, GameTest, client, and server commands are
-independent operations. CI-provider adapters only install Nix and compose the same
-commands that a developer runs locally. The runtime code stays in Python so process
+independent operations. Small composite actions map one-to-one to those commands. Small
+reusable job workflows add only checkout or artifact transport; repository workflows
+retain their dependency graph. The runtime code stays in Python so process
 management, timeouts, paths, and Windows-specific Gradle launching are not encoded in
 shell scripts.
 
@@ -43,11 +44,12 @@ other.
    development-runtime job, and feed the built JAR artifact to separate production
    probes. No test command silently rebuilds the artifact it was asked to verify.
 
-All 20 custom NeoForge mods now call the shared `v2` workflow. Three physically
-client-only projects select `client`; common projects select `both`. Dependency-bearing
-mods compose the declarative `fdlib`, `forbidden-arcanus`, `ftb-filters`, `irons-spells`,
-`rustic-engineer`, and `simply-swords` profiles. Only the two projects that currently
-contain registered GameTests enable the separate GameTest job.
+All 20 custom NeoForge mods compose the shared `v3.0.0` build and runtime jobs. Three
+physically client-only projects omit the server job; common projects compose both.
+Dependency-bearing mods use the declarative `fdlib`, `forbidden-arcanus`, `ftb-filters`,
+`irons-spells`, `rustic-engineer`, and `simply-swords` profiles. Only the two projects
+that currently contain registered GameTests compose the separate GameTest job. Release
+workflows compose the same build job with an artifact-only GitHub publisher.
 
 ## Modpack strategy
 
@@ -79,7 +81,7 @@ failure boundary for hidden dialogs or loading screens.
 
 ## Provider and platform adapters
 
-- GitHub Actions calls the public reusable workflow.
+- GitHub Actions composes the public actions or small reusable job workflows.
 - Another CI provider runs the documented `nix run` command and publishes `.bertie-ci`
   logs; it does not reimplement the test.
 - Linux uses the pinned Nix closure, Xvfb, and Mesa software rendering.
@@ -94,8 +96,8 @@ Before broad rollout:
 - the shared flake check is green on GitHub;
 - the `bertie-tiers` local and hosted client/server probes are green;
 - failures point at retained logs and crash reports;
-- the public workflow is tagged `v2`, and callers use that immutable tag rather than
-  bootstrap `@main`;
+- the public actions and job workflows are tagged `v3.0.0`, and callers use that
+  immutable release rather than bootstrap `@main`;
 - dependency fixtures are hash-pinned and side-aware;
 - a full-pack run has a measured cold-cache and warm-cache duration.
 

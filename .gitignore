@@ -1,3 +1,4 @@
 .bertie-ci/
+__pycache__/
+*.py[cod]
 result
-

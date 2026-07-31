@@ -5,7 +5,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from .artifact import find_artifact
+from .artifact import find_artifact, stage_artifact
 from .config import load_java, load_tools, load_versions
 from .gradle import build_mod, run_gametests
 from .runtime import Context, run_client, run_server
@@ -43,6 +43,11 @@ def _parser() -> argparse.ArgumentParser:
 
     build = subcommands.add_parser("build", help="build a NeoForge mod JAR")
     _add_project(build)
+    build.add_argument(
+        "--output-dir",
+        type=Path,
+        help="copy the single releaseable JAR into this artifact directory",
+    )
 
     gametest = subcommands.add_parser(
         "gametest", help="run NeoForge GameTests in the Gradle development runtime"
@@ -71,7 +76,14 @@ def _run_build(args: argparse.Namespace) -> None:
     project = _project(args)
     java = load_java()
     build_mod(project, java.parent.parent)
-    print(f"Built artifact: {find_artifact(project, None)}", flush=True)
+    artifact = find_artifact(project, None)
+    if args.output_dir is not None:
+        output_dir = args.output_dir
+        if not output_dir.is_absolute():
+            output_dir = project / output_dir
+        output_dir = output_dir.resolve()
+        artifact = stage_artifact(artifact, output_dir)
+    print(f"Built artifact: {artifact}", flush=True)
 
 
 def _run_gametest(args: argparse.Namespace) -> None:

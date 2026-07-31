@@ -1,0 +1,43 @@
+name: Build mod artifact
+
+on:
+  workflow_call:
+    inputs:
+      retention-days:
+        description: Number of days to retain the built JAR
+        required: false
+        type: number
+        default: 14
+    outputs:
+      artifact-name:
+        description: Name of the uploaded JAR artifact
+        value: ${{ jobs.build.outputs.artifact-name }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build JAR
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      artifact-name: mod-${{ github.repository_id }}-${{ github.sha }}
+    steps:
+      - name: Checkout mod
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up dependencies
+        uses: bertie-mc/bertie-ci/actions/setup-nix@v3.0.0
+
+      - name: Build
+        id: build
+        uses: bertie-mc/bertie-ci/actions/build@v3.0.0
+
+      - name: Upload built mod
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: mod-${{ github.repository_id }}-${{ github.sha }}
+          path: ${{ steps.build.outputs.artifact-dir }}/*.jar
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention-days }}

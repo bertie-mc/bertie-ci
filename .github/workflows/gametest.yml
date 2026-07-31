@@ -1,0 +1,39 @@
+name: NeoForge GameTests
+
+on:
+  workflow_call:
+    inputs:
+      timeout:
+        description: GameTest timeout in seconds
+        required: false
+        type: number
+        default: 900
+
+permissions:
+  contents: read
+
+jobs:
+  gametest:
+    name: NeoForge GameTests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout mod
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up dependencies
+        uses: bertie-mc/bertie-ci/actions/setup-nix@v3.0.0
+
+      - name: Run GameTests
+        uses: bertie-mc/bertie-ci/actions/gametest@v3.0.0
+        with:
+          timeout: ${{ inputs.timeout }}
+
+      - name: Upload GameTest log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: gametest-${{ github.repository_id }}-${{ github.sha }}
+          path: .bertie-ci/gametest.log
+          if-no-files-found: warn
+          retention-days: 14

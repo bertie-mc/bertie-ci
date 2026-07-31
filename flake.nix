@@ -29,7 +29,7 @@
           };
           bertie-ci = pkgs.python3Packages.buildPythonApplication {
             pname = "bertie-ci";
-            version = "0.1.0";
+            version = "3.0.0";
             pyproject = true;
             src = ./.;
             build-system = [ pkgs.python3Packages.setuptools ];
@@ -111,6 +111,35 @@
           help = pkgs.runCommand "bertie-ci-help" { } ''
             ${self.packages.${system}.bertie-ci}/bin/bertie-ci --help > "$out"
           '';
+          workflows = pkgs.runCommand "bertie-ci-workflows" {
+            nativeBuildInputs = [
+              pkgs.action-validator
+              pkgs.actionlint
+            ];
+          } ''
+            cd ${self}
+            actionlint .github/workflows/*.yml
+            action-validator actions/*/action.yml .github/workflows/*.yml
+            touch "$out"
+          '';
+        }
+      );
+
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+        in
+        {
+          default = pkgs.mkShell {
+            packages = [
+              pkgs.action-validator
+              pkgs.actionlint
+              pkgs.python3
+              pkgs.python3Packages.pytest
+              pkgs.ruff
+            ];
+          };
         }
       );
     };

@@ -12,14 +12,18 @@ CI provider. GitHub Actions is only one adapter around them.
 From a custom mod checkout, build once and run whichever checks apply:
 
 ```bash
-nix run github:bertie-mc/bertie-ci/v2.0.1#bertie-ci -- build --project .
-nix run github:bertie-mc/bertie-ci/v2.0.1#bertie-ci -- gametest --project .
-nix run github:bertie-mc/bertie-ci/v2.0.1#bertie-ci -- client --project .
-nix run github:bertie-mc/bertie-ci/v2.0.1#bertie-ci -- server --project .
+nix run github:bertie-mc/bertie-ci/v3.0.0#bertie-ci -- \
+  build --project . --output-dir .bertie-ci/artifact
+nix run github:bertie-mc/bertie-ci/v3.0.0#bertie-ci -- gametest --project .
+nix run github:bertie-mc/bertie-ci/v3.0.0#bertie-ci -- \
+  client --project . --artifact .bertie-ci/artifact
+nix run github:bertie-mc/bertie-ci/v3.0.0#bertie-ci -- \
+  server --project . --artifact .bertie-ci/artifact
 ```
 
-`build` uses the repository's Gradle wrapper and leaves the releaseable JAR in
-`build/libs`. `gametest` runs `runGameTestServer` in NeoForge's development runtime
+`build` uses the repository's Gradle wrapper. `--output-dir` stages exactly one
+releaseable JAR, preserving its filename, so publishing and runtime checks can consume
+the same explicit artifact. `gametest` runs `runGameTestServer` in NeoForge's development runtime
 and fails closed unless at least one test is discovered and the GameTest server reports a
 clean completion. This catches mod-loading crashes that Gradle can otherwise report as a
 successful task.
@@ -39,7 +43,7 @@ Mods with external runtime dependencies select one or more declarative packwiz f
 profiles. For example:
 
 ```bash
-nix run github:bertie-mc/bertie-ci/v2.0.1#bertie-ci -- \
+nix run github:bertie-mc/bertie-ci/v3.0.0#bertie-ci -- \
   client --project . --fixture forbidden-arcanus,irons-spells
 ```
 
@@ -48,9 +52,21 @@ instance. Profiles compose by set union, so combinations do not require a new wo
 a project branch in Python. Every client instance also gets the pinned Collective and Hide
 Experimental Warning baseline; `bertie-pack` ships the same warning-hiding mod.
 
-## GitHub Actions adapter
+## GitHub Actions adapters
 
-A repository needs only its triggers and one caller job:
+The command-line operations are also exposed as independent composite actions:
+
+- `bertie-mc/bertie-ci/actions/setup-nix@v3.0.0`
+- `bertie-mc/bertie-ci/actions/build@v3.0.0`
+- `bertie-mc/bertie-ci/actions/gametest@v3.0.0`
+- `bertie-mc/bertie-ci/actions/client@v3.0.0`
+- `bertie-mc/bertie-ci/actions/server@v3.0.0`
+
+They do not check out source, transfer artifacts, choose job dependencies, or publish a
+release. A custom workflow can compose them as ordinary steps.
+
+Small reusable workflows provide the common GitHub-specific job adapters. A repository
+keeps its trigger and dependency graph visible while reusing the implementation:
 
 ```yaml
 name: Build and test
@@ -62,18 +78,45 @@ on:
     branches: ["main"]
 
 jobs:
-  checks:
-    uses: bertie-mc/bertie-ci/.github/workflows/neoforge-mod.yml@v2.0.1
+  build:
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.0.0
+
+  gametest:
+    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.0.0
+
+  client:
+    needs: build
+    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.0.0
     with:
-      sides: both
-      gametest: true
+      artifact-name: ${{ needs.build.outputs.artifact-name }}
+      fixture: forbidden-arcanus,irons-spells
+
+  server:
+    needs: build
+    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.0.0
+    with:
+      artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
 ```
 
-The adapter has separate build, GameTest, client, and server jobs. The build job publishes
-the JAR as a workflow artifact; the production jobs download and test that exact artifact.
-The GameTest job is optional because only projects with registered GameTests should pay
-for a development-runtime launch. Each job invokes one of the same commands shown above.
+`build-mod.yml` only builds and uploads a JAR. `client.yml` and `server.yml` only download
+and test the named artifact. `gametest.yml` only runs the development-runtime suite.
+`github-release.yml` only downloads and publishes a named artifact. A release therefore
+composes `build-mod.yml` followed by `github-release.yml`; it has no second build recipe.
+
+```yaml
+jobs:
+  build:
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.0.0
+
+  publish:
+    needs: build
+    permissions:
+      contents: write
+    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.0.0
+    with:
+      artifact-name: ${{ needs.build.outputs.artifact-name }}
+```
 
 Test logic does not depend on GitHub-hosted runner setup or `apt-get`. The Python commands
 are CI-provider-independent and avoid POSIX-shell assumptions; Nix is the supported Linux
@@ -86,8 +129,8 @@ helper.
 
 NeoForge intentionally registers `@GameTest` methods only in a development runtime, not
 in the production installation launched by HeadlessMC. A mod that has GameTests should
-enable the reusable workflow's `gametest` input or run the standalone `gametest` command
-in addition to its production client/server checks. Keeping the layers separate catches
+compose `gametest.yml`, the `gametest` action, or the standalone command in addition to
+its production client/server checks. Keeping the layers separate catches
 both kinds of failure:
 
 - Gradle GameTests exercise mod behavior in NeoForge's development runtime.

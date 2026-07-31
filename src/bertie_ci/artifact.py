@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 
@@ -29,3 +30,18 @@ def find_artifact(project: Path, requested: Path | None) -> Path:
             "use --artifact with an exact file"
         )
     return artifacts[0].resolve(strict=True)
+
+
+def stage_artifact(artifact: Path, output_dir: Path) -> Path:
+    artifact = artifact.resolve(strict=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = output_dir.resolve(strict=True)
+    if output_dir == artifact.parent:
+        raise RuntimeError("Artifact output directory must differ from build/libs")
+
+    destination = output_dir / artifact.name
+    unexpected = [path for path in output_dir.glob("*.jar") if path != destination]
+    if unexpected:
+        names = ", ".join(path.name for path in unexpected)
+        raise RuntimeError(f"Artifact output directory contains other JARs: {names}")
+    return Path(shutil.copy2(artifact, destination)).resolve(strict=True)

@@ -1,0 +1,30 @@
+name: Build NeoForge mod
+description: Build and stage one releaseable JAR with the local-first bertie-ci command
+
+inputs:
+  project:
+    description: Path to the mod checkout
+    required: false
+    default: .
+  artifact-dir:
+    description: Artifact directory, relative to the project
+    required: false
+    default: .bertie-ci/artifact
+
+outputs:
+  artifact-dir:
+    description: Directory containing exactly one releaseable JAR
+    value: ${{ inputs.artifact-dir }}
+
+runs:
+  using: composite
+  steps:
+    - name: Build and stage JAR
+      shell: bash
+      env:
+        BERTIE_CI_PROJECT: ${{ inputs.project }}
+        BERTIE_CI_ARTIFACT_DIR: ${{ inputs.artifact-dir }}
+      run: >-
+        nix run "${GITHUB_ACTION_PATH}/../..#bertie-ci" --
+        build --project "$BERTIE_CI_PROJECT"
+        --output-dir "$BERTIE_CI_ARTIFACT_DIR"
