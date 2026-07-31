@@ -133,15 +133,17 @@ Before broad rollout:
 - the shared flake check is green on GitHub;
 - the `bertie-tiers` local and hosted client/server probes are green;
 - failures point at retained logs and crash reports;
-- the public actions and job workflows are tagged `v3.3.0`, and callers use that
+- the public actions and job workflows are tagged `v3.3.1`, and callers use that
   immutable release rather than bootstrap `@main`;
 - dependency fixtures are hash-pinned and side-aware;
 - a full-pack run has a measured cold-cache and warm-cache duration.
 
-The first four gates are complete locally. Publishing `v3.3.0` completes the shared-action
-gate; full-pack timing and rollout remain the next phase. The earlier title-menu experiment
-is not the baseline because a UI onboarding screen blocked it without proving whether an
-integrated world could load. The first prepared full-pack world-join run already improved
-on that signal: it reached the first client tick and exposed Immersive Armors attempting a
-late armor-material registration, a product failure that a title-menu assertion would have
-missed.
+The shared-action gates are complete. `v3.3.1` adds the full desktop JDK needed when a
+client mod initializes AWT and makes repeated probes safe when Nix-sourced JARs are
+read-only. A prepared 460-mod full-pack world-join probe completed locally in about four
+minutes on aarch64 after dependencies were assembled; hosted rollout remains the next
+phase. The earlier title-menu experiment is not the baseline because a UI onboarding
+screen blocked it without proving whether an integrated world could load. The first
+prepared full-pack world-join run already improved on that signal: it reached the first
+client tick and exposed Immersive Armors attempting a late armor-material registration, a
+product failure that a title-menu assertion would have missed.

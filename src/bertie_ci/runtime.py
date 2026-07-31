@@ -1,35 +1,14 @@
 from __future__ import annotations
 
-import os
-import shutil
-import stat
-import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
 
 from .config import Tools, Versions
 from .display import virtual_display
+from .filesystem import remove_file, remove_tree, replace_file
 from .instance import Instance
 from .process import run
 from .properties import write_properties
-
-
-def _clear_readonly(func: Callable[[str], Any], target: str, _error: Any) -> None:
-    os.chmod(target, stat.S_IWRITE)
-    func(target)
-
-
-def _remove_tree(path: Path) -> None:
-    """Delete a runtime tree, tolerating read-only files.
-
-    Windows refuses to unlink a read-only file; POSIX only consults the parent
-    directory, so this only ever matters there.
-    """
-    if sys.version_info >= (3, 12):
-        shutil.rmtree(path, onexc=_clear_readonly)
-    else:
-        shutil.rmtree(path, onerror=_clear_readonly)
 
 
 @dataclass(frozen=True)
@@ -46,7 +25,7 @@ def _reset_probe(work: Path) -> Path:
     work.mkdir(parents=True, exist_ok=True)
     control = work / "HeadlessMC"
     if control.exists():
-        _remove_tree(control)
+        remove_tree(control)
     control.mkdir()
     for name in (
         "runtime.log",
@@ -55,7 +34,7 @@ def _reset_probe(work: Path) -> Path:
         "neoforge-server-install.log",
         "xvfb.log",
     ):
-        (work / name).unlink(missing_ok=True)
+        remove_file(work / name)
     return work
 
 
@@ -132,7 +111,7 @@ def run_client_probe(
     game_dir = context.instance.game_dir
     mods = game_dir / "mods"
     mods.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(context.tools.mc_runtime_test, mods / "bertie-ci-mc-runtime-test.jar")
+    replace_file(context.tools.mc_runtime_test, mods / "bertie-ci-mc-runtime-test.jar")
     minecraft = (context.cache / "minecraft").resolve()
     minecraft.mkdir(parents=True, exist_ok=True)
 

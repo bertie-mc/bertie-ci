@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,6 +8,7 @@ from typing import Any, Literal
 
 from .artifact import find_artifact
 from .config import Tools, Versions
+from .filesystem import remove_file, remove_tree, replace_file
 from .fixture import install_fixtures
 from .process import run
 from .web import serve_directory
@@ -62,9 +62,9 @@ def _reset_instance(output: Path) -> Path:
     if game_dir.parent != output.resolve():
         raise RuntimeError(f"Unsafe instance directory: {game_dir}")
     if game_dir.exists():
-        shutil.rmtree(game_dir)
+        remove_tree(game_dir)
     game_dir.mkdir(parents=True)
-    (output / DESCRIPTOR_NAME).unlink(missing_ok=True)
+    remove_file(output / DESCRIPTOR_NAME)
     return game_dir
 
 
@@ -178,7 +178,7 @@ def prepare_mod_instance(
     (game_dir / "mods").mkdir()
     install_fixtures(tools, versions, game_dir, output, profiles, side)
     artifact = find_artifact(project, requested_artifact)
-    shutil.copy2(artifact, game_dir / "mods" / "mod-under-test.jar")
+    replace_file(artifact, game_dir / "mods" / "mod-under-test.jar")
     return write_instance(
         output,
         Instance(side, game_dir, versions.minecraft, "neoforge", versions.neoforge),

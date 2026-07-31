@@ -29,7 +29,7 @@
           };
           bertie-ci = pkgs.python3Packages.buildPythonApplication {
             pname = "bertie-ci";
-            version = "3.3.0";
+            version = "3.3.1";
             pyproject = true;
             src = ./.;
             build-system = [ pkgs.python3Packages.setuptools ];
@@ -41,7 +41,7 @@
                   pkgs.lib.makeBinPath [
                     pkgs.bash
                     pkgs.coreutils
-                    pkgs.jdk21_headless
+                    pkgs.jdk21
                     pkgs.mesa-demos
                     pkgs.packwiz
                     pkgs.xorg-server
@@ -54,7 +54,7 @@
                 --set-default BERTIE_CI_PACKWIZ_INSTALLER_JAR ${packwizInstaller} \
                 --set-default BERTIE_CI_PACKWIZ ${pkgs.packwiz}/bin/packwiz \
                 --set-default BERTIE_CI_FIXTURES ${./fixtures} \
-                --set-default BERTIE_CI_JAVA_HOME ${pkgs.jdk21_headless} \
+                --set-default BERTIE_CI_JAVA_HOME ${pkgs.jdk21} \
                 --set-default BERTIE_CI_XVFB ${pkgs.xorg-server}/bin/Xvfb \
                 --set-default BERTIE_CI_GLXINFO ${pkgs.mesa-demos}/bin/glxinfo \
                 --set LIBGL_DRIVERS_PATH ${pkgs.mesa}/lib/dri \
