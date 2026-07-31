@@ -9,7 +9,7 @@ from bertie_ci.config import Versions
 from bertie_ci.fixture import build_fixture_pack
 
 
-VERSIONS = Versions("1.21.1", "21.1.217", "21", "2.10.0", "4.5.1", "0.5.14")
+VERSIONS = Versions("1.21.1", "21.1.233", "21", "2.10.0", "4.5.1", "0.5.14")
 BUNDLED_FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 

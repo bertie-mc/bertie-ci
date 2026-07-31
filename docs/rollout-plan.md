@@ -44,13 +44,15 @@ replace one another.
    jobs, and feed the built JAR artifact to separate production probes. No test command
    silently rebuilds the production artifact it was asked to verify.
 
-All 21 custom NeoForge mods compose the shared `v3.2.0` build and runtime jobs. Three
-physically client-only projects omit the server job; common projects compose both.
-Dependency-bearing mods use the declarative `create`, `fdlib`, `forbidden-arcanus`, `ftb-filters`,
-`irons-spells`, `rustic-engineer`, and `simply-swords` profiles. Only the two projects
-that currently contain registered GameTests compose the separate GameTest job. The three
-projects with JVM test sources compose the separate unit-test job. Release workflows
-compose the same assembly job with an artifact-only GitHub publisher.
+All 21 custom NeoForge mods compose shared build and runtime jobs. The original 20 use
+`v3.1.1`; `primitive-refined` uses `v3.2.1`, which adds its Create fixture and aligns the
+production runtime with the pack's NeoForge 21.1.233 pin. Three physically client-only
+projects omit the server job; common projects compose both. Dependency-bearing mods use
+the declarative `create`, `fdlib`, `forbidden-arcanus`, `ftb-filters`, `irons-spells`,
+`rustic-engineer`, and `simply-swords` profiles. Only the two projects that currently
+contain registered GameTests compose the separate GameTest job. The three projects with
+JVM test sources compose the separate unit-test job. Release workflows compose the same
+assembly job with an artifact-only GitHub publisher.
 
 ## Modpack strategy
 
@@ -97,7 +99,7 @@ Before broad rollout:
 - the shared flake check is green on GitHub;
 - the `bertie-tiers` local and hosted client/server probes are green;
 - failures point at retained logs and crash reports;
-- the public actions and job workflows are tagged `v3.2.0`, and callers use that
+- the public actions and job workflows are tagged `v3.2.1`, and callers use that
   immutable release rather than bootstrap `@main`;
 - dependency fixtures are hash-pinned and side-aware;
 - a full-pack run has a measured cold-cache and warm-cache duration.
