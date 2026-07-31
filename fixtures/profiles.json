@@ -26,6 +26,7 @@
     "simply-tooltips"
   ],
   "rustic-engineer": [
+    "geckolib",
     "rustic-engineer"
   ]
 }
