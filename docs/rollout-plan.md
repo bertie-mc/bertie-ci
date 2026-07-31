@@ -2,12 +2,12 @@
 
 ## Decisions
 
-`bertie-ci` is the test product. Its build, GameTest, client, and server commands are
-independent operations. Small composite actions map one-to-one to those commands. Small
-reusable job workflows add only checkout or artifact transport; repository workflows
-retain their dependency graph. The runtime code stays in Python so process
-management, timeouts, paths, and Windows-specific Gradle launching are not encoded in
-shell scripts.
+`bertie-ci` is the test product. Its build, unit-test, GameTest, client, and server
+commands are independent operations. Small composite actions map one-to-one to those
+commands. Small reusable job workflows add only checkout or artifact transport;
+repository workflows retain their dependency graph. The runtime code stays in Python so
+process management, timeouts, paths, and Windows-specific Gradle launching are not
+encoded in shell scripts.
 
 The two production probes are deliberately small and stable:
 
@@ -22,9 +22,9 @@ abstraction boundary because that action installs a loader dynamically and canno
 the exact NeoForge build used by the projects.
 
 NeoForge `@GameTest` registration is disabled in production distributions. GameTests
-therefore remain a third, separate layer run by Gradle's development runtime. A runtime
-world join and a GameTest run cover different failure modes and neither replaces the
-other.
+therefore remain a separate behavioral layer run by Gradle's development runtime. JVM
+tests, a runtime world join, and a GameTest run cover different failure modes and do not
+replace one another.
 
 ## Custom-mod rollout
 
