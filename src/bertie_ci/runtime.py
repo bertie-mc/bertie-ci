@@ -1,13 +1,35 @@
 from __future__ import annotations
 
+import os
 import shutil
+import stat
+import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Callable
 
 from .config import Tools, Versions
 from .display import virtual_display
 from .fixture import install_fixtures
 from .process import run
+from .properties import write_properties
+
+
+def _clear_readonly(func: Callable[[str], Any], target: str, _error: Any) -> None:
+    os.chmod(target, stat.S_IWRITE)
+    func(target)
+
+
+def _remove_tree(path: Path) -> None:
+    """Delete a runtime tree, tolerating read-only files.
+
+    Windows refuses to unlink a read-only file; POSIX only consults the parent
+    directory, so this only ever matters there.
+    """
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=_clear_readonly)
+    else:
+        shutil.rmtree(path, onerror=_clear_readonly)
 
 
 @dataclass(frozen=True)
@@ -25,7 +47,7 @@ def _reset_runtime(work: Path, name: str) -> Path:
         raise RuntimeError(f"Unsafe runtime directory: {runtime}")
     for child in (runtime / "run", runtime / "HeadlessMC"):
         if child.exists():
-            shutil.rmtree(child)
+            _remove_tree(child)
     log = runtime / "runtime.log"
     if log.exists():
         log.unlink()
@@ -35,6 +57,7 @@ def _reset_runtime(work: Path, name: str) -> Path:
 
 
 def _write(path: Path, lines: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -89,27 +112,30 @@ def run_client(
         context.tools.mc_runtime_test, runtime / "run" / "mods" / "mc-runtime-test.jar"
     )
 
-    _write(
+    write_properties(
         runtime / "HeadlessMC" / "config.properties",
-        [
-            f"hmc.java.versions={context.tools.java}",
-            "hmc.jvmargs=-Xms512M -Xmx4G -DMcRuntimeGameTestMinExpectedGameTests=0",
-            f"hmc.gamedir={runtime / 'run'}",
-            f"hmc.mcdir={minecraft}",
-            "hmc.offline=true",
-            "hmc.assets.dummy=true",
-            f"hmc.check.xvfb={str(context.tools.xvfb is not None).lower()}",
-            "hmc.jline.enabled=false",
-            "hmc.rethrow.launch.exceptions=true",
-            "hmc.exit.on.failed.command=true",
-            "hmc.crash.report.watcher=true",
-            "hmc.loglevel=INFO",
-        ],
+        {
+            "hmc.java.versions": context.tools.java,
+            "hmc.jvmargs": "-Xms512M -Xmx4G -DMcRuntimeGameTestMinExpectedGameTests=0",
+            "hmc.gamedir": runtime / "run",
+            "hmc.mcdir": minecraft,
+            "hmc.offline": "true",
+            "hmc.assets.dummy": "true",
+            "hmc.check.xvfb": str(context.tools.xvfb is not None).lower(),
+            "hmc.jline.enabled": "false",
+            "hmc.rethrow.launch.exceptions": "true",
+            "hmc.exit.on.failed.command": "true",
+            "hmc.crash.report.watcher": "true",
+            "hmc.loglevel": "INFO",
+        },
     )
     _write(
         runtime / "run" / "options.txt",
         ["onboardAccessibility:false", "pauseOnLostFocus:false"],
     )
+    # NeoForge's early-loading splash is a second GL surface the world-join probe
+    # never needs. FML corrects this file with its remaining defaults on startup.
+    _write(runtime / "run" / "config" / "fml.toml", ["earlyWindowControl = false"])
     _install_client(context, runtime, minecraft)
 
     loader = f"^neoforge-{context.versions.neoforge}$"
@@ -143,27 +169,27 @@ def run_server(
     )
     shutil.copy2(context.artifact, runtime / "run" / "mods" / "mod-under-test.jar")
 
-    _write(
+    write_properties(
         runtime / "HeadlessMC" / "config.properties",
-        [
-            f"hmc.java.versions={context.tools.java}",
-            "hmc.jvmargs=-Xms512M -Xmx3G",
-            f"hmc.mcdir={minecraft}",
-            f"hmc.server.test.dir={runtime / 'run'}",
-            "hmc.server.test.type=neoforge",
-            f"hmc.server.test.version={context.versions.minecraft}",
-            "hmc.offline=true",
-            "hmc.jline.enabled=false",
-            "hmc.rethrow.launch.exceptions=true",
-            "hmc.exit.on.failed.command=true",
-            "hmc.server.launch.for.eula=true",
-            "hmc.server.accept.eula=true",
-            "hmc.server.test=true",
-            "hmc.server.test.cache=true",
-            "hmc.server.test.cache.use.mc.dir=true",
-            "hmc.crash.report.watcher=true",
-            "hmc.loglevel=INFO",
-        ],
+        {
+            "hmc.java.versions": context.tools.java,
+            "hmc.jvmargs": "-Xms512M -Xmx3G",
+            "hmc.mcdir": minecraft,
+            "hmc.server.test.dir": runtime / "run",
+            "hmc.server.test.type": "neoforge",
+            "hmc.server.test.version": context.versions.minecraft,
+            "hmc.offline": "true",
+            "hmc.jline.enabled": "false",
+            "hmc.rethrow.launch.exceptions": "true",
+            "hmc.exit.on.failed.command": "true",
+            "hmc.server.launch.for.eula": "true",
+            "hmc.server.accept.eula": "true",
+            "hmc.server.test": "true",
+            "hmc.server.test.cache": "true",
+            "hmc.server.test.cache.use.mc.dir": "true",
+            "hmc.crash.report.watcher": "true",
+            "hmc.loglevel": "INFO",
+        },
     )
 
     print(f"Installing exact NeoForge server {context.versions.neoforge}", flush=True)

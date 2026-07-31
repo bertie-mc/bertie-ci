@@ -1,3 +1,5 @@
+import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -51,3 +53,22 @@ def test_reset_runtime_only_replaces_selected_runtime(tmp_path: Path) -> None:
     assert (runtime / "run" / "mods").is_dir()
     assert (runtime / "HeadlessMC").is_dir()
     assert sibling.read_text(encoding="utf-8") == "keep"
+
+
+def test_reset_runtime_replaces_read_only_files(tmp_path: Path) -> None:
+    """Windows refuses to unlink a read-only file; a stale run must still clear."""
+    work = tmp_path / "work"
+    old_run = work / "client" / "run"
+    old_run.mkdir(parents=True)
+    stale = old_run / "options.txt"
+    stale.write_text("stale", encoding="utf-8")
+    os.chmod(stale, stat.S_IREAD)
+
+    try:
+        runtime = _reset_runtime(work, "client")
+    finally:
+        if stale.exists():
+            os.chmod(stale, stat.S_IWRITE)
+
+    assert not stale.exists()
+    assert (runtime / "run" / "mods").is_dir()
