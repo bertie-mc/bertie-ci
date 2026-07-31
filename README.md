@@ -106,7 +106,11 @@ artifacts, or choose job dependencies; the GitHub publisher consumes files and n
 builds them. A custom workflow can compose the actions as ordinary steps.
 
 Small reusable workflows provide the common GitHub-specific job adapters. A repository
-keeps its trigger and dependency graph visible while reusing the implementation:
+keeps its trigger and dependency graph visible while reusing the implementation.
+GitHub requires reusable workflows to live directly in `.github/workflows`, so these
+adapters cannot be moved alongside the composite actions in `workflows/`.
+
+For example:
 
 ```yaml
 name: Build and test

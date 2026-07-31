@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    # For GitHub Actions, "/" means .github/workflows. Composite actions are
+    # separate manifests, so include every actions/*/action.yml directory too.
+    directories:
+      - "/"
+      - "/actions/*"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
