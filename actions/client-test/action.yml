@@ -9,15 +9,15 @@ inputs:
     description: Directory for HeadlessMC state and logs
     required: true
   test-mod:
-    description: Test-only mod JAR containing the project assertions
-    required: true
+    description: Optional test-only mod JAR containing the project assertions
+    required: false
   minimum-game-tests:
     description: Minimum number of project GameTests that must be discovered
     required: false
     default: "0"
   success-marker:
-    description: Exact project-owned text that must appear in the client runtime log
-    required: true
+    description: Optional exact project-owned text that must appear in the client runtime log
+    required: false
   cache-dir:
     description: Directory for downloaded Minecraft files
     required: false

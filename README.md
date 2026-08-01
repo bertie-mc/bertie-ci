@@ -16,7 +16,7 @@ lines are the Linux path; on native Windows there is no usable Nix, so follow
 [`docs/windows.md`](docs/windows.md) instead.
 
 ```bash
-bertie_ci_package="$(nix build github:bertie-mc/bertie-ci/v3.7.1#bertie-ci \
+bertie_ci_package="$(nix build github:bertie-mc/bertie-ci/v3.7.2#bertie-ci \
   --no-link --print-out-paths)"
 export PATH="$bertie_ci_package/bin:$PATH"
 
@@ -115,21 +115,21 @@ runs `actions/setup` once; it installs Nix, builds the pinned package once, and 
 wrapped `bertie-ci` command to `PATH`. Operational actions call that command directly and
 do not reevaluate Nixpkgs.
 
-- `bertie-mc/bertie-ci/actions/setup@v3.7.1`
-- `bertie-mc/bertie-ci/actions/build@v3.7.1`
-- `bertie-mc/bertie-ci/actions/unit-test@v3.7.1`
-- `bertie-mc/bertie-ci/actions/gametest@v3.7.1`
-- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.7.1`
-- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.7.1`
-- `bertie-mc/bertie-ci/actions/client-test@v3.7.1`
-- `bertie-mc/bertie-ci/actions/server-test@v3.7.1`
-- `bertie-mc/bertie-ci/actions/client-probe@v3.7.1`
-- `bertie-mc/bertie-ci/actions/server-probe@v3.7.1`
-- `bertie-mc/bertie-ci/actions/pack-validate@v3.7.1`
-- `bertie-mc/bertie-ci/actions/pack-resolve@v3.7.1`
-- `bertie-mc/bertie-ci/actions/pack-export-client@v3.7.1`
-- `bertie-mc/bertie-ci/actions/pack-export-server@v3.7.1`
-- `bertie-mc/bertie-ci/actions/github-release@v3.7.1`
+- `bertie-mc/bertie-ci/actions/setup@v3.7.2`
+- `bertie-mc/bertie-ci/actions/build@v3.7.2`
+- `bertie-mc/bertie-ci/actions/unit-test@v3.7.2`
+- `bertie-mc/bertie-ci/actions/gametest@v3.7.2`
+- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.7.2`
+- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.7.2`
+- `bertie-mc/bertie-ci/actions/client-test@v3.7.2`
+- `bertie-mc/bertie-ci/actions/server-test@v3.7.2`
+- `bertie-mc/bertie-ci/actions/client-probe@v3.7.2`
+- `bertie-mc/bertie-ci/actions/server-probe@v3.7.2`
+- `bertie-mc/bertie-ci/actions/pack-validate@v3.7.2`
+- `bertie-mc/bertie-ci/actions/pack-resolve@v3.7.2`
+- `bertie-mc/bertie-ci/actions/pack-export-client@v3.7.2`
+- `bertie-mc/bertie-ci/actions/pack-export-server@v3.7.2`
+- `bertie-mc/bertie-ci/actions/github-release@v3.7.2`
 
 Each owns one operation. Except for the GitHub-only publisher, operational actions expect
 the setup action to have placed `bertie-ci` on `PATH`. The build and test actions do not
@@ -155,24 +155,24 @@ on:
 
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.7.1
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.7.2
 
   unit-test:
-    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.7.1
+    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.7.2
 
   gametest:
-    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.7.1
+    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.7.2
 
   client:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.7.1
+    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.7.2
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
 
   server:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.7.1
+    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.7.2
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
@@ -187,13 +187,13 @@ composes `build-mod.yml` followed by `github-release.yml`; it has no second buil
 ```yaml
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.7.1
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.7.2
 
   publish:
     needs: build
     permissions:
       contents: write
-    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.7.1
+    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.7.2
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
 ```

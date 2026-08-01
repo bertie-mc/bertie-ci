@@ -57,6 +57,11 @@ def _nonnegative_int(value: str) -> int:
     return parsed
 
 
+def _optional_path(value: str) -> Path | None:
+    """Translate an empty adapter input into an omitted optional path."""
+    return Path(value) if value else None
+
+
 def _add_probe(
     parser: argparse.ArgumentParser, default_timeout: int, default_memory: str
 ) -> None:
@@ -155,7 +160,7 @@ def _parser() -> argparse.ArgumentParser:
         "--test-mod",
         action="append",
         default=[],
-        type=Path,
+        type=_optional_path,
         metavar="JAR",
         help="optional test-only mod JAR to install; may be repeated",
     )
@@ -290,7 +295,11 @@ def _run_probe(
     context = _probe_context(args.instance, args.work_dir, args.cache_dir)
     if side == "client":
         minimum_game_tests = args.minimum_game_tests if project_owned else 0
-        required_log_markers = tuple(args.require_log) if project_owned else ()
+        required_log_markers = (
+            tuple(marker for marker in args.require_log if marker)
+            if project_owned
+            else ()
+        )
         if project_owned and minimum_game_tests == 0 and not required_log_markers:
             raise RuntimeError(
                 "client-test requires --minimum-game-tests or --require-log"
@@ -301,7 +310,9 @@ def _run_probe(
             args.max_memory,
             minimum_game_tests=minimum_game_tests,
             test_mods=(
-                tuple(path.resolve() for path in args.test_mod) if project_owned else ()
+                tuple(path.resolve() for path in args.test_mod if path is not None)
+                if project_owned
+                else ()
             ),
             required_log_markers=required_log_markers,
         )
