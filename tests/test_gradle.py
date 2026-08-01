@@ -3,7 +3,33 @@ from pathlib import Path
 import pytest
 
 from bertie_ci.artifact import find_artifact, stage_artifact
-from bertie_ci.gradle import verify_gametest_log
+from bertie_ci.gradle import run_gradle, verify_gametest_log
+
+
+def test_run_gradle_uses_the_managed_executable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    invocation = {}
+
+    def fake_run(command, **kwargs) -> None:
+        invocation["command"] = command
+        invocation.update(kwargs)
+
+    gradle = tmp_path / "nix-store" / "bin" / "gradle"
+    java_home = tmp_path / "jdk"
+    monkeypatch.setenv("BERTIE_CI_GRADLE", str(gradle))
+    monkeypatch.setattr("bertie_ci.gradle.run", fake_run)
+
+    run_gradle(tmp_path, java_home, ["assemble"])
+
+    assert invocation["command"] == [
+        str(gradle),
+        "assemble",
+        "--no-daemon",
+        "--stacktrace",
+    ]
+    assert invocation["cwd"] == tmp_path
+    assert invocation["env"]["JAVA_HOME"] == str(java_home)
 
 
 def _log(tmp_path: Path, text: str) -> Path:

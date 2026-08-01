@@ -88,6 +88,8 @@
               config.treefmt.build.wrapper
               pkgs.action-validator
               pkgs.actionlint
+              pkgs.gradle_8
+              pkgs.jdk21
               pkgs.python3
               pkgs.python3Packages.pytest
               pkgs.ruff

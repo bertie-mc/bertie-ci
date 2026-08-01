@@ -28,11 +28,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up dependencies
-        uses: bertie-mc/bertie-ci/actions/setup@v3.5.0
+        uses: bertie-mc/bertie-ci/actions/setup@v3.6.0
 
       - name: Build
         id: build
-        uses: bertie-mc/bertie-ci/actions/build@v3.5.0
+        uses: bertie-mc/bertie-ci/actions/build@v3.6.0
 
       - name: Upload built mod
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

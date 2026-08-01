@@ -12,15 +12,14 @@ the Linux path and should follow the README instead.
 
 | Command | Windows | Extra requirements |
 | --- | --- | --- |
-| `build` | Yes | Java 21 only |
-| `unit-test` | Yes | Java 21 only |
-| `gametest` | Yes | Java 21 only |
+| `build` | Yes | Gradle 8 and Java 21 |
+| `unit-test` | Yes | Gradle 8 and Java 21 |
+| `gametest` | Yes | Gradle 8 and Java 21 |
 | `server` | Yes | Java 21 and the three tool JARs |
 | `client` | Yes, but not headless | Java 21, the three tool JARs, and an interactive desktop session |
 
-`build`, `unit-test` and `gametest` need nothing beyond a JDK because they only drive the
-project's own Gradle wrapper. The runner selects `gradlew.bat` on Windows and invokes it
-directly rather than through `sh`.
+`build`, `unit-test` and `gametest` invoke the Gradle executable selected by
+`BERTIE_CI_GRADLE`, falling back to `gradle` on `PATH`. Projects do not carry wrappers.
 
 `client` is the one command that behaves differently. Windows has no Xvfb equivalent, so
 the probe runs against the desktop session you are logged into: a real Minecraft window
@@ -31,11 +30,11 @@ unattended.
 
 ## Prerequisites
 
-Java 21 and Python 3.11 or newer, both on `PATH`, plus `JAVA_HOME` pointing at the JDK
-root. The runner reads `BERTIE_CI_JAVA_HOME` first and falls back to `JAVA_HOME`.
+Gradle 8.14.4, Java 21, and Python 3.11 or newer on `PATH`, plus `JAVA_HOME` pointing at
+the JDK root. The runner reads `BERTIE_CI_JAVA_HOME` first and falls back to `JAVA_HOME`.
 
 ```powershell
-java -version; python --version; $env:JAVA_HOME
+gradle --version; java -version; python --version; $env:JAVA_HOME
 ```
 
 If `JAVA_HOME` is unset, set it for the current session and persist it separately:
@@ -183,6 +182,7 @@ not the project, and are reused by later runs.
 | Variable | Purpose | Windows default |
 | --- | --- | --- |
 | `BERTIE_CI_JAVA_HOME` | JDK root; takes precedence over `JAVA_HOME` | unset |
+| `BERTIE_CI_GRADLE` | Gradle executable | `gradle` from `PATH` |
 | `BERTIE_CI_HEADLESSMC_JAR` | HeadlessMC launcher JAR | required for `client`/`server` |
 | `BERTIE_CI_MCRT_JAR` | `mc-runtime-test` probe JAR | required for `client`/`server` |
 | `BERTIE_CI_PACKWIZ_INSTALLER_JAR` | packwiz-installer JAR | required for `client`/`server` |
@@ -191,7 +191,6 @@ not the project, and are reused by later runs.
 | `BERTIE_CI_FIXTURE_PACK` | Canonical `bertie-pack` checkout | required when installing fixtures |
 | `BERTIE_CI_XVFB` | Xvfb binary | unset, and unusable on Windows |
 | `BERTIE_CI_GLXINFO` | `glxinfo` binary for the GL preflight | unset, and unusable on Windows |
-| `BERTIE_CI_SHELL` | Shell used to launch `gradlew` | unused; Windows runs `gradlew.bat` directly |
 | `XDG_CACHE_HOME` | Parent of the Minecraft cache | `%USERPROFILE%\.cache` |
 
 The cache path is deliberately the same on every platform, so it is `C:\Users\<you>\.cache\bertie-ci`
@@ -202,9 +201,9 @@ rather than somewhere under `%LOCALAPPDATA%`. Pass `--cache-dir` to put it elsew
 **`Java not found at ...`** — `JAVA_HOME` is pointing at a JRE, at a directory one level
 too deep, or at a path that no longer exists. The runner expects `<JAVA_HOME>\bin\java.exe`.
 
-**`Gradle wrapper not found in ...`** — `--project` is not a mod checkout, or the checkout
-is missing `gradlew.bat`. A repository with only the POSIX `gradlew` cannot be built on
-Windows; regenerate the wrapper.
+**`gradle` is not recognized** — install Gradle 8.14.4 and add it to `PATH`, or point
+`BERTIE_CI_GRADLE` at the executable. Gradle 9 is not supported by the current
+ModDevGradle setup.
 
 **A build or probe fails with a path that stops mid-way through, or a `Malformed \uxxxx
 encoding` error** — this was a real defect and is fixed. Windows paths were written into

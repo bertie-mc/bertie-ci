@@ -4,6 +4,7 @@
   fetchurl,
   bash,
   coreutils,
+  gradle_8,
   jdk21,
   mesa-demos,
   packwiz,
@@ -43,6 +44,7 @@ let
   runtimePath = lib.makeBinPath [
     bash
     coreutils
+    gradle_8
     jdk21
     mesa-demos
     packwiz
@@ -95,8 +97,8 @@ python3Packages.buildPythonApplication {
     ":"
     runtimePath
     "--set-default"
-    "BERTIE_CI_SHELL"
-    (lib.getExe' bash "sh")
+    "BERTIE_CI_GRADLE"
+    (lib.getExe gradle_8)
     "--set-default"
     "BERTIE_CI_VERSIONS"
     ../versions.json

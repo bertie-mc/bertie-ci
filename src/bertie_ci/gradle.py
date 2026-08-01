@@ -16,18 +16,12 @@ def run_gradle(
     log: Path | None = None,
     timeout_seconds: int | None = None,
 ) -> None:
-    wrapper = project / ("gradlew.bat" if os.name == "nt" else "gradlew")
-    if not wrapper.is_file():
-        raise RuntimeError(f"Gradle wrapper not found in {project}")
-
     command: list[str | Path] = [
-        wrapper,
+        os.environ.get("BERTIE_CI_GRADLE", "gradle"),
         *tasks,
         "--no-daemon",
         "--stacktrace",
     ]
-    if os.name != "nt":
-        command.insert(0, os.environ.get("BERTIE_CI_SHELL", "sh"))
     run(
         command,
         cwd=project,

@@ -15,7 +15,7 @@ source-agnostic probes. These lines are the Linux path; on native Windows there 
 usable Nix, so follow [`docs/windows.md`](docs/windows.md) instead.
 
 ```bash
-bertie_ci_package="$(nix build github:bertie-mc/bertie-ci/v3.5.0#bertie-ci \
+bertie_ci_package="$(nix build github:bertie-mc/bertie-ci/v3.6.0#bertie-ci \
   --no-link --print-out-paths)"
 export PATH="$bertie_ci_package/bin:$PATH"
 
@@ -27,7 +27,7 @@ bertie-ci prepare-mod-instance --project . --artifact .bertie-ci/artifact \
 bertie-ci client-probe --instance .bertie-ci/client/instance.json
 ```
 
-`build` uses the repository's Gradle wrapper to run `assemble`; it does not run tests.
+`build` uses the Nix-pinned Gradle 8 executable to run `assemble`; it does not run tests.
 `--output-dir` stages exactly one releaseable JAR, preserving its filename, so publishing
 and runtime checks can consume the same explicit artifact. `unit-test` runs Gradle's
 ordinary JVM test task independently. `gametest` runs `runGameTestServer` in NeoForge's development runtime
@@ -88,19 +88,19 @@ runs `actions/setup` once; it installs Nix, builds the pinned package once, and 
 wrapped `bertie-ci` command to `PATH`. Operational actions call that command directly and
 do not reevaluate Nixpkgs.
 
-- `bertie-mc/bertie-ci/actions/setup@v3.5.0`
-- `bertie-mc/bertie-ci/actions/build@v3.5.0`
-- `bertie-mc/bertie-ci/actions/unit-test@v3.5.0`
-- `bertie-mc/bertie-ci/actions/gametest@v3.5.0`
-- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.5.0`
-- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.5.0`
-- `bertie-mc/bertie-ci/actions/client-probe@v3.5.0`
-- `bertie-mc/bertie-ci/actions/server-probe@v3.5.0`
-- `bertie-mc/bertie-ci/actions/pack-validate@v3.5.0`
-- `bertie-mc/bertie-ci/actions/pack-resolve@v3.5.0`
-- `bertie-mc/bertie-ci/actions/pack-export-client@v3.5.0`
-- `bertie-mc/bertie-ci/actions/pack-export-server@v3.5.0`
-- `bertie-mc/bertie-ci/actions/github-release@v3.5.0`
+- `bertie-mc/bertie-ci/actions/setup@v3.6.0`
+- `bertie-mc/bertie-ci/actions/build@v3.6.0`
+- `bertie-mc/bertie-ci/actions/unit-test@v3.6.0`
+- `bertie-mc/bertie-ci/actions/gametest@v3.6.0`
+- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.6.0`
+- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.6.0`
+- `bertie-mc/bertie-ci/actions/client-probe@v3.6.0`
+- `bertie-mc/bertie-ci/actions/server-probe@v3.6.0`
+- `bertie-mc/bertie-ci/actions/pack-validate@v3.6.0`
+- `bertie-mc/bertie-ci/actions/pack-resolve@v3.6.0`
+- `bertie-mc/bertie-ci/actions/pack-export-client@v3.6.0`
+- `bertie-mc/bertie-ci/actions/pack-export-server@v3.6.0`
+- `bertie-mc/bertie-ci/actions/github-release@v3.6.0`
 
 Each owns one operation. Except for the GitHub-only publisher, operational actions expect
 the setup action to have placed `bertie-ci` on `PATH`. The build and test actions do not
@@ -126,24 +126,24 @@ on:
 
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.5.0
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.6.0
 
   unit-test:
-    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.5.0
+    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.6.0
 
   gametest:
-    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.5.0
+    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.6.0
 
   client:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.5.0
+    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.6.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
 
   server:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.5.0
+    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.6.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
@@ -158,13 +158,13 @@ composes `build-mod.yml` followed by `github-release.yml`; it has no second buil
 ```yaml
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.5.0
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.6.0
 
   publish:
     needs: build
     permissions:
       contents: write
-    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.5.0
+    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.6.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
 ```
@@ -174,8 +174,8 @@ are CI-provider-independent and avoid POSIX-shell assumptions; Nix is the suppor
 dependency provider, while other platforms can supply Java, HeadlessHQ artifacts, and a
 display backend through environment variables. On Linux, the Python runner starts and
 supervises Xvfb directly; it does not depend on a distribution-specific `xvfb-run` shell
-helper. On Windows the runner invokes `gradlew.bat` directly rather than through a shell,
-and every check runs natively without WSL; [`docs/windows.md`](docs/windows.md) covers the
+helper. On Windows the runner invokes a Gradle 8 installation directly, and every check
+runs natively without WSL; [`docs/windows.md`](docs/windows.md) covers the
 setup and the one behavioral difference, which is that `client` has no Xvfb equivalent and
 therefore occupies the desktop session it runs on.
 
@@ -196,11 +196,8 @@ not used as a substitute for NeoForge's development-only GameTest runner.
 
 ## Pins
 
-The initial toolchain is Minecraft 1.21.1, NeoForge 21.1.233, Java 21, HeadlessMC
+The initial toolchain is Minecraft 1.21.1, NeoForge 21.1.233, Gradle 8.14.4, Java 21, HeadlessMC
 2.10.0, mc-runtime-test 4.5.1, and packwiz-installer 0.5.14. Third-party JARs are
 fixed-output Nix inputs with verified SHA-256 hashes. The canonical `bertie-pack`
 metadata source is also an immutable flake input; updating it is an explicit lock-file
 change.
-
-The staged rollout, dependency-fixture design, and modpack testing levels are documented
-in [`docs/rollout-plan.md`](docs/rollout-plan.md).

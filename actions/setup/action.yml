@@ -1,5 +1,5 @@
 name: Set up bertie-ci
-description: Install Nix and add the pinned bertie-ci command to PATH
+description: Install Nix and add bertie-ci with its pinned Gradle runtime to PATH
 
 runs:
   using: composite
