@@ -28,6 +28,5 @@ runs:
         BERTIE_CI_SIDE: ${{ inputs.side }}
         BERTIE_CI_OUTPUT: ${{ inputs.output-dir }}
       run: >-
-        nix run "${GITHUB_ACTION_PATH}/../..#bertie-ci" --
-        prepare-pack-instance --project "$BERTIE_CI_PROJECT"
+        bertie-ci prepare-pack-instance --project "$BERTIE_CI_PROJECT"
         --side "$BERTIE_CI_SIDE" --output-dir "$BERTIE_CI_OUTPUT"

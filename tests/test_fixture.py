@@ -23,7 +23,7 @@ def _catalog(tmp_path: Path) -> tuple[Path, Path]:
     root = tmp_path / "fixtures"
     root.mkdir()
     (root / "profiles.json").write_text(
-        json.dumps({"base": ["one", "two"], "extra": ["two"]}),
+        json.dumps({"base": ["one", "two"], "extra": ["two", "three"]}),
         encoding="utf-8",
     )
     (root / "defaults.json").write_text(
@@ -33,7 +33,7 @@ def _catalog(tmp_path: Path) -> tuple[Path, Path]:
     mods = pack / "mods"
     mods.mkdir(parents=True)
     files = []
-    for name in ("default", "one", "two"):
+    for name in ("default", "direct", "one", "three", "two"):
         metafile = mods / f"{name}.pw.toml"
         metafile.write_text(
             f'name = "{name}"\nfilename = "{name}.jar"\n', encoding="utf-8"
@@ -76,7 +76,7 @@ def test_build_fixture_pack_composes_and_hashes_profiles(tmp_path: Path) -> None
         profiles,
         pack_source,
         destination,
-        ["base", "extra"],
+        ["base", "direct", "extra"],
         VERSIONS,
         "client",
     )
@@ -88,7 +88,9 @@ def test_build_fixture_pack_composes_and_hashes_profiles(tmp_path: Path) -> None
     index_data = tomllib.loads(index.read_text(encoding="utf-8"))
     assert [entry["file"] for entry in index_data["files"]] == [
         "mods/default.pw.toml",
+        "mods/direct.pw.toml",
         "mods/one.pw.toml",
+        "mods/three.pw.toml",
         "mods/two.pw.toml",
     ]
     assert all(entry["metafile"] for entry in index_data["files"])
@@ -97,14 +99,31 @@ def test_build_fixture_pack_composes_and_hashes_profiles(tmp_path: Path) -> None
     ).read_bytes()
 
 
-def test_build_fixture_pack_rejects_unknown_profile(tmp_path: Path) -> None:
+def test_build_fixture_pack_rejects_unknown_selector(tmp_path: Path) -> None:
     profiles, pack_source = _catalog(tmp_path)
-    with pytest.raises(RuntimeError, match="Unknown fixture profile.*available: base"):
+    with pytest.raises(RuntimeError, match="Unknown fixture selector.*canonical pack"):
         build_fixture_pack(
             profiles,
             pack_source,
             tmp_path / "generated",
             ["missing"],
+            VERSIONS,
+            "server",
+        )
+
+
+def test_build_fixture_pack_rejects_single_mod_profile(tmp_path: Path) -> None:
+    profiles, pack_source = _catalog(tmp_path)
+    (profiles / "profiles.json").write_text(
+        json.dumps({"one": ["one"]}), encoding="utf-8"
+    )
+
+    with pytest.raises(RuntimeError, match="aggregate at least two mods"):
+        build_fixture_pack(
+            profiles,
+            pack_source,
+            tmp_path / "generated",
+            ["one"],
             VERSIONS,
             "server",
         )
@@ -159,7 +178,8 @@ def test_bundled_fixture_profiles_reference_canonical_pack(
     defaults = json.loads(
         (BUNDLED_FIXTURES / "defaults.json").read_text(encoding="utf-8")
     )
-    names = {
+    direct = {"create", "fdlib", "immersive-armors", "refined-storage"}
+    names = direct | {
         name for entries in [*profiles.values(), *defaults.values()] for name in entries
     }
 
@@ -167,7 +187,7 @@ def test_bundled_fixture_profiles_reference_canonical_pack(
         BUNDLED_FIXTURES,
         CANONICAL_PACK,
         tmp_path / "generated",
-        list(profiles),
+        [*profiles, *direct],
         VERSIONS,
         "client",
     )

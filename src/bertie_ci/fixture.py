@@ -29,10 +29,13 @@ def _load_profiles(root: Path) -> dict[str, list[str]]:
     if not isinstance(data, dict) or not all(
         isinstance(name, str)
         and isinstance(entries, list)
+        and len(set(entries)) >= 2
         and all(isinstance(entry, str) for entry in entries)
         for name, entries in data.items()
     ):
-        raise RuntimeError("Invalid fixture profile catalog")
+        raise RuntimeError(
+            "Invalid fixture profile catalog; profiles must aggregate at least two mods"
+        )
     return data
 
 
@@ -112,24 +115,31 @@ def build_fixture_pack(
     root: Path,
     canonical_pack: Path,
     destination: Path,
-    selected_profiles: list[str],
+    selected_fixtures: list[str],
     versions: Versions,
     side: str,
 ) -> Path:
     profiles = _load_profiles(root)
-    unknown = sorted(set(selected_profiles) - profiles.keys())
-    if unknown:
-        available = ", ".join(sorted(profiles))
-        raise RuntimeError(
-            f"Unknown fixture profile(s): {', '.join(unknown)}; available: {available}"
-        )
-
     canonical_mods = _canonical_mods(canonical_pack, versions)
+    unknown = sorted(
+        selector
+        for selector in set(selected_fixtures)
+        if selector not in profiles and selector not in canonical_mods
+    )
+    if unknown:
+        raise RuntimeError(
+            f"Unknown fixture selector(s): {', '.join(unknown)}; expected an aggregate "
+            "profile or canonical pack mod name"
+        )
 
     entries = sorted(
         {
             *_load_defaults(root, side),
-            *(entry for profile in selected_profiles for entry in profiles[profile]),
+            *(
+                entry
+                for selector in selected_fixtures
+                for entry in profiles.get(selector, [selector])
+            ),
         }
     )
     if destination.exists():
@@ -203,7 +213,7 @@ def install_fixtures(
         side,
     )
     selected = ", ".join(profiles) if profiles else "defaults only"
-    print(f"Installing fixture profiles for {side}: {selected}", flush=True)
+    print(f"Installing fixtures for {side}: {selected}", flush=True)
     with serve_directory(pack.parent) as url:
         run(
             [

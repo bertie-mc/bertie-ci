@@ -1,0 +1,15 @@
+name: Set up bertie-ci
+description: Install Nix and add the pinned bertie-ci command to PATH
+
+runs:
+  using: composite
+  steps:
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+
+    - name: Install bertie-ci command
+      shell: bash
+      run: |
+        package="$(nix build "${GITHUB_ACTION_PATH}/../..#bertie-ci" --no-link --print-out-paths)"
+        "$package/bin/bertie-ci" --help > /dev/null
+        printf '%s\n' "$package/bin" >> "$GITHUB_PATH"

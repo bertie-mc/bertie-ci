@@ -15,5 +15,4 @@ runs:
       env:
         BERTIE_CI_PROJECT: ${{ inputs.project }}
       run: >-
-        nix run "${GITHUB_ACTION_PATH}/../..#bertie-ci" --
-        unit-test --project "$BERTIE_CI_PROJECT"
+        bertie-ci unit-test --project "$BERTIE_CI_PROJECT"

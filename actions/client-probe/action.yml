@@ -33,7 +33,6 @@ runs:
         BERTIE_CI_TIMEOUT: ${{ inputs.timeout }}
         BERTIE_CI_MAX_MEMORY: ${{ inputs.max-memory }}
       run: >-
-        nix run "${GITHUB_ACTION_PATH}/../..#bertie-ci" --
-        client-probe --instance "$BERTIE_CI_INSTANCE"
+        bertie-ci client-probe --instance "$BERTIE_CI_INSTANCE"
         --work-dir "$BERTIE_CI_WORK_DIR" --cache-dir "$BERTIE_CI_CACHE_DIR"
         --timeout "$BERTIE_CI_TIMEOUT" --max-memory "$BERTIE_CI_MAX_MEMORY"

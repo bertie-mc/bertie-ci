@@ -3,12 +3,6 @@
     "artifacts",
     "curios"
   ],
-  "create": [
-    "create"
-  ],
-  "fdlib": [
-    "fdlib"
-  ],
   "forbidden-arcanus": [
     "forbidden-arcanus",
     "valhelsia-core"
@@ -24,12 +18,6 @@
     "irons-lib",
     "irons-spells-n-spellbooks",
     "playeranimator"
-  ],
-  "immersive-armors": [
-    "immersive-armors"
-  ],
-  "refined-storage": [
-    "refined-storage"
   ],
   "simply-swords": [
     "architectury-api",

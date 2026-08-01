@@ -11,7 +11,7 @@ inputs:
     required: false
     default: .bertie-ci/artifact
   fixture:
-    description: Comma-separated dependency profiles sourced from the canonical pack
+    description: Comma-separated canonical mods or aggregate dependency profiles
     required: false
     default: ""
   work-dir:
@@ -40,8 +40,7 @@ runs:
         BERTIE_CI_CACHE_DIR: ${{ inputs.cache-dir }}
         BERTIE_CI_TIMEOUT: ${{ inputs.timeout }}
       run: >-
-        nix run "${GITHUB_ACTION_PATH}/../..#bertie-ci" --
-        client --project "$BERTIE_CI_PROJECT"
+        bertie-ci client --project "$BERTIE_CI_PROJECT"
         --artifact "$BERTIE_CI_ARTIFACT"
         --fixture "$BERTIE_CI_FIXTURE"
         --work-dir "$BERTIE_CI_WORK_DIR"

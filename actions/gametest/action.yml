@@ -25,7 +25,6 @@ runs:
         BERTIE_CI_WORK_DIR: ${{ inputs.work-dir }}
         BERTIE_CI_TIMEOUT: ${{ inputs.timeout }}
       run: >-
-        nix run "${GITHUB_ACTION_PATH}/../..#bertie-ci" --
-        gametest --project "$BERTIE_CI_PROJECT"
+        bertie-ci gametest --project "$BERTIE_CI_PROJECT"
         --work-dir "$BERTIE_CI_WORK_DIR"
         --timeout "$BERTIE_CI_TIMEOUT"

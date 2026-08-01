@@ -17,11 +17,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Install Nix
-        uses: ./actions/setup-nix
+      - name: Set up bertie-ci
+        uses: ./actions/setup
 
       - name: Check
         run: nix flake check
 
       - name: Smoke-test command
-        run: nix run .#bertie-ci -- --help
+        run: bertie-ci --help

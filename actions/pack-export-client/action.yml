@@ -19,5 +19,4 @@ runs:
         BERTIE_CI_PROJECT: ${{ inputs.project }}
         BERTIE_CI_OUTPUT: ${{ inputs.output }}
       run: >-
-        nix run "${GITHUB_ACTION_PATH}/../..#bertie-ci" --
-        pack-export-client --project "$BERTIE_CI_PROJECT" --output "$BERTIE_CI_OUTPUT"
+        bertie-ci pack-export-client --project "$BERTIE_CI_PROJECT" --output "$BERTIE_CI_OUTPUT"

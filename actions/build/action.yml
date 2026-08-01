@@ -25,6 +25,5 @@ runs:
         BERTIE_CI_PROJECT: ${{ inputs.project }}
         BERTIE_CI_ARTIFACT_DIR: ${{ inputs.artifact-dir }}
       run: >-
-        nix run "${GITHUB_ACTION_PATH}/../..#bertie-ci" --
-        build --project "$BERTIE_CI_PROJECT"
+        bertie-ci build --project "$BERTIE_CI_PROJECT"
         --output-dir "$BERTIE_CI_ARTIFACT_DIR"

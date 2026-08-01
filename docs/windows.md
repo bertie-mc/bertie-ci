@@ -81,7 +81,7 @@ python -m bertie_ci --help
 uv run bertie-ci --help
 ```
 
-An installed copy does not carry `versions.json` or the fixture profiles, because both
+An installed copy does not carry `versions.json` or the fixture catalog, because both
 sit outside the Python package. Point `BERTIE_CI_VERSIONS` and `BERTIE_CI_FIXTURES` at the
 checkout if you install the package somewhere else. Runtime fixture commands also need
 `BERTIE_CI_FIXTURE_PACK` to identify the canonical pack checkout. The commands above use
@@ -168,7 +168,8 @@ python -m bertie_ci server --project C:\src\bertie-tiers --artifact .bertie-ci\a
 python -m bertie_ci client --project C:\src\bertie-tiers --artifact .bertie-ci\artifact
 ```
 
-Mods with external runtime dependencies select fixture profiles exactly as on Linux:
+Mods with external runtime dependencies select canonical mods or aggregate fixture
+profiles exactly as on Linux:
 
 ```powershell
 python -m bertie_ci client --project C:\src\forge-ink --fixture forbidden-arcanus,irons-spells
@@ -186,7 +187,7 @@ not the project, and are reused by later runs.
 | `BERTIE_CI_MCRT_JAR` | `mc-runtime-test` probe JAR | required for `client`/`server` |
 | `BERTIE_CI_PACKWIZ_INSTALLER_JAR` | packwiz-installer JAR | required for `client`/`server` |
 | `BERTIE_CI_VERSIONS` | Path to `versions.json` | repository root |
-| `BERTIE_CI_FIXTURES` | Path to the fixture profile mappings | `fixtures/` in the repository |
+| `BERTIE_CI_FIXTURES` | Path to fixture aggregates and defaults | `fixtures/` in the repository |
 | `BERTIE_CI_FIXTURE_PACK` | Canonical `bertie-pack` checkout | required when installing fixtures |
 | `BERTIE_CI_XVFB` | Xvfb binary | unset, and unusable on Windows |
 | `BERTIE_CI_GLXINFO` | `glxinfo` binary for the GL preflight | unset, and unusable on Windows |

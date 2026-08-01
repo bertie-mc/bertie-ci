@@ -29,7 +29,7 @@ jobs:
           merge-multiple: true
 
       - name: Create GitHub release
-        uses: bertie-mc/bertie-ci/actions/github-release@v3.4.1
+        uses: bertie-mc/bertie-ci/actions/github-release@v3.5.0
         with:
           files: ${{ inputs.files }}
           prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
