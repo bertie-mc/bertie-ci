@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
-from .config import Tools
+from .config import ClientRuntimeTools
 
 
 def _reserve_display() -> tuple[int, Path]:
@@ -24,7 +24,7 @@ def _reserve_display() -> tuple[int, Path]:
     raise RuntimeError("No free Xvfb display number is available")
 
 
-def _check_glx(tools: Tools, environment: dict[str, str]) -> None:
+def _check_glx(tools: ClientRuntimeTools, environment: dict[str, str]) -> None:
     if tools.glxinfo is None:
         return
     result = subprocess.run(
@@ -51,11 +51,11 @@ def _check_glx(tools: Tools, environment: dict[str, str]) -> None:
 
 
 @contextmanager
-def virtual_display(tools: Tools, log: Path) -> Iterator[dict[str, str]]:
+def virtual_display(tools: ClientRuntimeTools, log: Path) -> Iterator[dict[str, str]]:
     environment = {**os.environ, "LIBGL_ALWAYS_SOFTWARE": "true"}
     if tools.xvfb is None:
         if os.name == "nt":
-            # Windows has no Xvfb equivalent. The probe runs against the desktop
+            # Windows has no Xvfb equivalent. The client test runs against the desktop
             # session, so a real game window opens and takes focus.
             print(
                 "No virtual display configured; the client will open a window on "

@@ -16,7 +16,7 @@ lines are the Linux path; on native Windows there is no usable Nix, so follow
 [`docs/windows.md`](docs/windows.md) instead.
 
 ```bash
-bertie_ci_package="$(nix build github:bertie-mc/bertie-ci/v3.8.0#bertie-ci \
+bertie_ci_package="$(nix build github:bertie-mc/bertie-ci/v4.0.0#bertie-ci \
   --no-link --print-out-paths)"
 export PATH="$bertie_ci_package/bin:$PATH"
 
@@ -25,7 +25,7 @@ bertie-ci unit-test --project .
 bertie-ci gametest --project .
 bertie-ci prepare-mod-instance --project . --artifact .bertie-ci/artifact \
   --side client --output-dir .bertie-ci/client
-bertie-ci client-probe --instance .bertie-ci/client/instance.json
+bertie-ci client-test --instance .bertie-ci/client/instance.json
 ```
 
 `build` uses the Nix-pinned Gradle 8 executable to run `assemble`; it does not run tests.
@@ -36,18 +36,18 @@ and fails closed unless at least one test is discovered and the GameTest server 
 clean completion. This catches mod-loading crashes that Gradle can otherwise report as a
 successful task.
 `prepare-mod-instance` consumes the already-built JAR and declarative dependency
-fixtures sourced from the canonical modpack. `client-probe` and `server-probe` consume
-only a prepared-instance descriptor; they do not know whether packwiz or a mod artifact
-produced it. They are reusable opt-in smoke presets:
+fixtures sourced from the canonical modpack. `client-test` and `server-test` consume only
+a prepared-instance descriptor; they do not know whether packwiz or a mod artifact
+produced it. With no extensions, they run the reusable smoke scenarios:
 
-- the HeadlessHQ `mc-runtime-test` client probe under Xvfb, which loads the real client,
+- the HeadlessHQ `mc-runtime-test` client runner under Xvfb, which loads the real client,
   joins a singleplayer world, waits for the player's chunk, and exits;
-- a HeadlessMC dedicated-server probe, which waits for server readiness and stops it
+- a HeadlessMC dedicated-server runner, which waits for server readiness and stops it
   cleanly.
 
-Those presets are not a project's integration suite. A project that needs a production
-client test supplies a test-only mod containing its own assertions. The suite can use
-GameTests, an exact project-owned success marker, or both:
+Projects extend those same runners instead of switching to another API. A production
+client suite can supply a test-only mod containing its own assertions, a minimum GameTest
+count, exact project-owned success markers, or any combination:
 
 ```bash
 bertie-ci build-client-test-mod --project . \
@@ -63,8 +63,9 @@ test-only mod owns the assertions and
 emits its stable marker only after they pass; `bertie-ci` fails closed if the marker is
 absent. Structure-backed suites can additionally use `--minimum-game-tests`; their NBT
 fixtures belong under the project's test resource source set, never in the release JAR.
-A project-specific dedicated-server
-suite supplies a HeadlessMC command-test document instead:
+A project-specific dedicated-server suite can supply a HeadlessMC command-test document,
+test-only mod, log markers, or a combination. Without them, the same command remains the
+readiness test:
 
 ```bash
 bertie-ci server-test --instance .bertie-ci/server/instance.json \
@@ -102,14 +103,14 @@ the same canonical pack snapshot.
 For example, the `artifacts` profile installs the pack's Artifacts and Curios pins for
 mods such as `fart-bomb`.
 
-From a packwiz checkout, validation never mutates the source tree. Download resolution,
-side preparation, probing, and exports remain separate operations:
+From a packwiz checkout, validation never mutates the source tree. Side preparation
+resolves and installs the selected downloads, and the same universal runners consume the
+result:
 
 ```bash
 bertie-ci pack-validate --project .
-bertie-ci pack-resolve --project . --side both --output-dir .bertie-ci/resolve
 bertie-ci prepare-pack-instance --project . --side client --output-dir .bertie-ci/client
-bertie-ci client-probe --instance .bertie-ci/client/instance.json --max-memory 10G
+bertie-ci client-test --instance .bertie-ci/client/instance.json --max-memory 10G
 ```
 
 ## GitHub Actions adapters
@@ -119,22 +120,19 @@ runs `actions/setup` once; it installs Nix, builds the pinned package once, and 
 wrapped `bertie-ci` command to `PATH`. Operational actions call that command directly and
 do not reevaluate Nixpkgs.
 
-- `bertie-mc/bertie-ci/actions/setup@v3.8.0`
-- `bertie-mc/bertie-ci/actions/build@v3.8.0`
-- `bertie-mc/bertie-ci/actions/build-client-test-mod@v3.8.0`
-- `bertie-mc/bertie-ci/actions/unit-test@v3.8.0`
-- `bertie-mc/bertie-ci/actions/gametest@v3.8.0`
-- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.8.0`
-- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.8.0`
-- `bertie-mc/bertie-ci/actions/client-test@v3.8.0`
-- `bertie-mc/bertie-ci/actions/server-test@v3.8.0`
-- `bertie-mc/bertie-ci/actions/client-probe@v3.8.0`
-- `bertie-mc/bertie-ci/actions/server-probe@v3.8.0`
-- `bertie-mc/bertie-ci/actions/pack-validate@v3.8.0`
-- `bertie-mc/bertie-ci/actions/pack-resolve@v3.8.0`
-- `bertie-mc/bertie-ci/actions/pack-export-client@v3.8.0`
-- `bertie-mc/bertie-ci/actions/pack-export-server@v3.8.0`
-- `bertie-mc/bertie-ci/actions/github-release@v3.8.0`
+- `bertie-mc/bertie-ci/actions/setup@v4.0.0`
+- `bertie-mc/bertie-ci/actions/build@v4.0.0`
+- `bertie-mc/bertie-ci/actions/build-client-test-mod@v4.0.0`
+- `bertie-mc/bertie-ci/actions/unit-test@v4.0.0`
+- `bertie-mc/bertie-ci/actions/gametest@v4.0.0`
+- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v4.0.0`
+- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v4.0.0`
+- `bertie-mc/bertie-ci/actions/client-test@v4.0.0`
+- `bertie-mc/bertie-ci/actions/server-test@v4.0.0`
+- `bertie-mc/bertie-ci/actions/pack-validate@v4.0.0`
+- `bertie-mc/bertie-ci/actions/pack-export-client@v4.0.0`
+- `bertie-mc/bertie-ci/actions/pack-export-server@v4.0.0`
+- `bertie-mc/bertie-ci/actions/github-release@v4.0.0`
 
 Each owns one operation. Except for the GitHub-only publisher, operational actions expect
 the setup action to have placed `bertie-ci` on `PATH`. The build and test actions do not
@@ -160,48 +158,53 @@ on:
 
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.8.0
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v4.0.0
 
   unit-test:
-    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.8.0
+    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v4.0.0
 
   gametest:
-    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.8.0
+    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v4.0.0
 
   client-test:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/client-test.yml@v3.8.0
+    uses: bertie-mc/bertie-ci/.github/workflows/client-test.yml@v4.0.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
+      build-test-mod: true
       success-marker: EXAMPLE_CLIENT_ASSERTIONS_PASSED
 
-  server:
+  server-test:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.8.0
+    uses: bertie-mc/bertie-ci/.github/workflows/server-test.yml@v4.0.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
 ```
 
 `build-mod.yml` only assembles and uploads a JAR. `unit-test.yml` only runs ordinary JVM
-tests. `client-test.yml` composes the optional test-mod build, prepared instance and
-project-owned runtime assertions. `client.yml` and `server.yml` remain explicit generic
-smoke presets.
-`gametest.yml` only runs the development-runtime suite.
+tests. `client-test.yml` and `server-test.yml` compose the relevant mod-instance adapter
+with the universal runtime runner and optional project-owned assertions. With no
+extensions they run world join and readiness. `gametest.yml` only runs the
+development-runtime suite.
+Reusable server and pack adapters can consume an optional separately uploaded test-mod
+artifact. The runner accepts either its exact JAR or the artifact directory, which must
+contain exactly one runtime JAR; test assembly remains independent from instance
+preparation and execution.
 `github-release.yml` only downloads and publishes a named artifact. A release therefore
 composes `build-mod.yml` followed by `github-release.yml`; it has no second build recipe.
 
 ```yaml
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.8.0
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v4.0.0
 
   publish:
     needs: build
     permissions:
       contents: write
-    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.8.0
+    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v4.0.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
 ```
@@ -212,8 +215,8 @@ dependency provider, while other platforms can supply Java, HeadlessHQ artifacts
 display backend through environment variables. On Linux, the Python runner starts and
 supervises Xvfb directly; it does not depend on a distribution-specific `xvfb-run` shell
 helper. On Windows the runner invokes a Gradle 8 installation directly, and every check
-runs natively without WSL; [`docs/windows.md`](docs/windows.md) covers the
-setup and the one behavioral difference, which is that `client` has no Xvfb equivalent and
+runs natively without WSL; [`docs/windows.md`](docs/windows.md) covers the setup and the
+one behavioral difference, which is that `client-test` has no Xvfb equivalent and
 therefore occupies the desktop session it runs on.
 
 ## Projects choose their layers
@@ -225,10 +228,11 @@ standalone command. A production runtime test is added only when it covers a dif
 risk, such as client rendering, side safety, optional-mod loading, or release-JAR
 packaging.
 
-`client-test` still uses `mc-runtime-test` because client launch, world creation, player
-join, timeouts and clean exit are reusable mechanics. Assertions stay in the project and
-can run at the lifecycle point appropriate to the behavior instead of being forced into
-a GameTest. `client-probe` is merely the explicit zero-assertion world-join preset.
+`client-test` uses `mc-runtime-test` because client launch, world creation, player join,
+timeouts and clean exit are reusable mechanics. Assertions stay in the project and can
+run at the lifecycle point appropriate to the behavior instead of being forced into a
+GameTest. A call without extensions is the zero-assertion world-join scenario; similarly,
+`server-test` defaults to readiness when no command test is supplied.
 
 ## Pins
 

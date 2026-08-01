@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from .artifact import find_artifact
-from .config import Tools, Versions
+from .config import FixtureTools, PackTools, Versions
 from .filesystem import remove_file, remove_tree, replace_file
 from .fixture import install_fixtures
 from .process import run
@@ -142,7 +142,7 @@ def install_pack(
     project: Path,
     destination: Path,
     side: Literal["client", "server", "both"],
-    tools: Tools,
+    tools: PackTools,
     log: Path,
 ) -> None:
     with serve_directory(project) as url:
@@ -171,7 +171,7 @@ def prepare_mod_instance(
     side: Side,
     output: Path,
     versions: Versions,
-    tools: Tools,
+    tools: FixtureTools,
 ) -> Path:
     output = output.resolve()
     game_dir = _reset_instance(output)
@@ -189,7 +189,7 @@ def prepare_pack_instance(
     project: Path,
     side: Side,
     output: Path,
-    tools: Tools,
+    tools: PackTools,
 ) -> Path:
     output = output.resolve()
     game_dir = _reset_instance(output)
@@ -199,15 +199,3 @@ def prepare_pack_instance(
     return write_instance(
         output, Instance(side, game_dir, minecraft, loader, loader_version)
     )
-
-
-def resolve_pack(
-    project: Path,
-    side: Literal["client", "server", "both"],
-    output: Path,
-    tools: Tools,
-) -> int:
-    output = output.resolve()
-    game_dir = _reset_instance(output)
-    install_pack(project, game_dir, side, tools, output / "pack-resolve.log")
-    return len(list((game_dir / "mods").glob("*.jar")))

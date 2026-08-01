@@ -1,5 +1,5 @@
-name: Run project client suite
-description: Run project-owned assertions in a prepared Minecraft client
+name: Test prepared Minecraft client
+description: Join a world and run optional project-owned assertions in any prepared client
 
 inputs:
   instance:
@@ -9,7 +9,7 @@ inputs:
     description: Directory for HeadlessMC state and logs
     required: true
   test-mod:
-    description: Optional test-only mod JAR containing the project assertions
+    description: Optional test-only mod JAR, or directory containing one JAR
     required: false
   minimum-game-tests:
     description: Minimum number of project GameTests that must be discovered
@@ -34,7 +34,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Run project client suite
+    - name: Test prepared client
       shell: bash
       env:
         BERTIE_CI_INSTANCE: ${{ inputs.instance }}

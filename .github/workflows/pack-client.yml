@@ -1,10 +1,10 @@
-name: Pack client world join
+name: Pack client integration suite
 
 on:
   workflow_call:
     inputs:
       timeout:
-        description: Probe timeout in seconds
+        description: Test timeout in seconds
         required: false
         type: number
         default: 4800
@@ -13,13 +13,28 @@ on:
         required: false
         type: string
         default: 10G
+      test-mod-artifact-name:
+        description: Optional uploaded artifact containing exactly one test-only mod JAR
+        required: false
+        type: string
+        default: ""
+      minimum-game-tests:
+        description: Minimum number of project GameTests that must be discovered
+        required: false
+        type: number
+        default: 0
+      success-marker:
+        description: Exact project-owned text required in the client runtime log
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
 
 jobs:
   client:
-    name: Pack client world join
+    name: Pack client integration
     runs-on: ubuntu-latest
     timeout-minutes: 100
     steps:
@@ -27,19 +42,29 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up dependencies
-        uses: bertie-mc/bertie-ci/actions/setup@v3.7.1
+        uses: bertie-mc/bertie-ci/actions/setup@v4.0.0
+
+      - name: Download test mod
+        if: inputs.test-mod-artifact-name != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.test-mod-artifact-name }}
+          path: .bertie-ci/test-mod-artifact
 
       - name: Prepare client pack
-        uses: bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.7.1
+        uses: bertie-mc/bertie-ci/actions/prepare-pack-instance@v4.0.0
         with:
           side: client
           output-dir: .bertie-ci/client
 
-      - name: Join an integrated world
-        uses: bertie-mc/bertie-ci/actions/client-probe@v3.7.1
+      - name: Test prepared client
+        uses: bertie-mc/bertie-ci/actions/client-test@v4.0.0
         with:
           instance: .bertie-ci/client/instance.json
           work-dir: .bertie-ci/client
+          test-mod: ${{ inputs.test-mod-artifact-name != '' && '.bertie-ci/test-mod-artifact' || '' }}
+          minimum-game-tests: ${{ inputs.minimum-game-tests }}
+          success-marker: ${{ inputs.success-marker }}
           timeout: ${{ inputs.timeout }}
           max-memory: ${{ inputs.max-memory }}
 

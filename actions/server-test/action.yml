@@ -1,13 +1,19 @@
-name: Run project server suite
-description: Run a project-owned HeadlessMC command test against a prepared server
+name: Test prepared Minecraft server
+description: Reach readiness or run a project-owned scenario in any prepared server
 
 inputs:
   instance:
     description: Prepared server instance descriptor
     required: true
   command-test:
-    description: Project-owned HeadlessMC command-test JSON
-    required: true
+    description: Optional project-owned HeadlessMC command-test JSON
+    required: false
+  test-mod:
+    description: Optional test-only mod JAR, or directory containing one JAR
+    required: false
+  success-marker:
+    description: Optional exact project-owned text required in the server runtime log
+    required: false
   work-dir:
     description: Directory for HeadlessMC state and logs
     required: true
@@ -27,11 +33,13 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Run project server suite
+    - name: Test prepared server
       shell: bash
       env:
         BERTIE_CI_INSTANCE: ${{ inputs.instance }}
         BERTIE_CI_COMMAND_TEST: ${{ inputs.command-test }}
+        BERTIE_CI_TEST_MOD: ${{ inputs.test-mod }}
+        BERTIE_CI_SUCCESS_MARKER: ${{ inputs.success-marker }}
         BERTIE_CI_WORK_DIR: ${{ inputs.work-dir }}
         BERTIE_CI_CACHE_DIR: ${{ inputs.cache-dir }}
         BERTIE_CI_TIMEOUT: ${{ inputs.timeout }}
@@ -39,5 +47,7 @@ runs:
       run: >-
         bertie-ci server-test --instance "$BERTIE_CI_INSTANCE"
         --command-test "$BERTIE_CI_COMMAND_TEST"
+        --test-mod "$BERTIE_CI_TEST_MOD"
+        --require-log "$BERTIE_CI_SUCCESS_MARKER"
         --work-dir "$BERTIE_CI_WORK_DIR" --cache-dir "$BERTIE_CI_CACHE_DIR"
         --timeout "$BERTIE_CI_TIMEOUT" --max-memory "$BERTIE_CI_MAX_MEMORY"

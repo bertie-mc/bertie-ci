@@ -22,7 +22,7 @@ force-push.
   provider.
 - Reusable GitHub workflows are thin adapters around those commands. Do not put test
   logic in workflow YAML.
-- Minecraft, NeoForge, Java, HeadlessMC, and probe versions are exact pins. Do not float
+- Minecraft, NeoForge, Java, HeadlessMC, and runtime-test versions are exact pins. Do not float
   loader builds or silently update the shared toolchain.
 - Third-party binaries must be fixed-output Nix inputs with verified hashes.
 - Runtime instances and downloaded JARs are ephemeral. Never commit JARs or generated

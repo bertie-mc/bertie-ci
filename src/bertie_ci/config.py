@@ -19,13 +19,26 @@ class Versions:
 
 
 @dataclass(frozen=True)
-class Tools:
+class PackTools:
     java: Path
-    headlessmc: Path
-    mc_runtime_test: Path
     packwiz_installer: Path
+
+
+@dataclass(frozen=True)
+class FixtureTools(PackTools):
     fixtures: Path
     fixture_pack: Path | None
+
+
+@dataclass(frozen=True)
+class ServerRuntimeTools:
+    java: Path
+    headlessmc: Path
+
+
+@dataclass(frozen=True)
+class ClientRuntimeTools(ServerRuntimeTools):
+    mc_runtime_test: Path
     xvfb: Path | None
     glxinfo: Path | None
 
@@ -88,16 +101,23 @@ def load_java() -> Path:
     return java
 
 
-def load_tools() -> Tools:
-    headlessmc = os.environ.get("BERTIE_CI_HEADLESSMC_JAR")
-    runtime_test = os.environ.get("BERTIE_CI_MCRT_JAR")
-    if not headlessmc or not runtime_test:
+def _configured_file(variable: str, label: str) -> Path:
+    configured = os.environ.get(variable)
+    if not configured:
         raise RuntimeError(
-            "Runtime artifacts are unavailable; set BERTIE_CI_HEADLESSMC_JAR, "
-            "BERTIE_CI_MCRT_JAR, and BERTIE_CI_PACKWIZ_INSTALLER_JAR or run through "
-            "the Nix flake"
+            f"{label} is unavailable; set {variable} or run through the Nix flake"
         )
+    path = Path(configured)
+    if not path.is_file():
+        raise RuntimeError(f"{label} not found at {path}")
+    return path
 
+
+def load_pack_tools() -> PackTools:
+    return PackTools(load_java(), load_packwiz_installer())
+
+
+def load_fixture_tools() -> FixtureTools:
     fixture_root = os.environ.get("BERTIE_CI_FIXTURES")
     fixtures = (
         Path(fixture_root)
@@ -105,28 +125,12 @@ def load_tools() -> Tools:
         else Path(__file__).resolve().parents[2] / "fixtures"
     )
     fixture_pack_root = os.environ.get("BERTIE_CI_FIXTURE_PACK")
-    xvfb = os.environ.get("BERTIE_CI_XVFB")
-    glxinfo = os.environ.get("BERTIE_CI_GLXINFO")
-    tools = Tools(
+    tools = FixtureTools(
         java=load_java(),
-        headlessmc=Path(headlessmc),
-        mc_runtime_test=Path(runtime_test),
         packwiz_installer=load_packwiz_installer(),
         fixtures=fixtures,
         fixture_pack=Path(fixture_pack_root) if fixture_pack_root else None,
-        xvfb=Path(xvfb) if xvfb else None,
-        glxinfo=Path(glxinfo) if glxinfo else None,
     )
-    for name, path in (
-        ("Java", tools.java),
-        ("HeadlessMC", tools.headlessmc),
-        ("mc-runtime-test", tools.mc_runtime_test),
-        ("packwiz-installer", tools.packwiz_installer),
-        ("Xvfb", tools.xvfb),
-        ("glxinfo", tools.glxinfo),
-    ):
-        if path is not None and not path.is_file():
-            raise RuntimeError(f"{name} not found at {path}")
     if not tools.fixtures.is_dir():
         raise RuntimeError(f"Fixture profiles not found at {tools.fixtures}")
     if tools.fixture_pack is not None and not (
@@ -134,4 +138,30 @@ def load_tools() -> Tools:
         and (tools.fixture_pack / "mods").is_dir()
     ):
         raise RuntimeError(f"Canonical fixture pack not found at {tools.fixture_pack}")
+    return tools
+
+
+def load_server_runtime_tools() -> ServerRuntimeTools:
+    return ServerRuntimeTools(
+        java=load_java(),
+        headlessmc=_configured_file("BERTIE_CI_HEADLESSMC_JAR", "HeadlessMC"),
+    )
+
+
+def load_client_runtime_tools() -> ClientRuntimeTools:
+    xvfb = os.environ.get("BERTIE_CI_XVFB")
+    glxinfo = os.environ.get("BERTIE_CI_GLXINFO")
+    tools = ClientRuntimeTools(
+        java=load_java(),
+        headlessmc=_configured_file("BERTIE_CI_HEADLESSMC_JAR", "HeadlessMC"),
+        mc_runtime_test=_configured_file("BERTIE_CI_MCRT_JAR", "mc-runtime-test"),
+        xvfb=Path(xvfb) if xvfb else None,
+        glxinfo=Path(glxinfo) if glxinfo else None,
+    )
+    for name, path in (
+        ("Xvfb", tools.xvfb),
+        ("glxinfo", tools.glxinfo),
+    ):
+        if path is not None and not path.is_file():
+            raise RuntimeError(f"{name} not found at {path}")
     return tools

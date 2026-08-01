@@ -6,7 +6,7 @@ import shutil
 import tomllib
 from pathlib import Path
 
-from .config import Tools, Versions
+from .config import FixtureTools, Versions
 from .process import run
 from .web import serve_directory
 
@@ -190,7 +190,7 @@ def build_fixture_pack(
 
 
 def install_fixtures(
-    tools: Tools,
+    tools: FixtureTools,
     versions: Versions,
     game_dir: Path,
     work: Path,

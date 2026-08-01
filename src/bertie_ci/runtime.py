@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from .config import Tools, Versions
+from .config import ClientRuntimeTools, ServerRuntimeTools, Versions
 from .display import virtual_display
 from .filesystem import remove_file, remove_tree, replace_file
 from .instance import Instance
@@ -16,15 +18,15 @@ _COMMAND_TEST_SUCCESS = "CommandTest was successful."
 
 
 @dataclass(frozen=True)
-class ProbeContext:
+class RuntimeContext:
     work: Path
     cache: Path
     instance: Instance
     supported: Versions
-    tools: Tools
+    tools: ServerRuntimeTools
 
 
-def _reset_probe(work: Path) -> Path:
+def _reset_runtime(work: Path) -> Path:
     work = work.resolve()
     work.mkdir(parents=True, exist_ok=True)
     control = work / "HeadlessMC"
@@ -47,15 +49,15 @@ def _write(path: Path, lines: list[str]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _java(context: ProbeContext) -> list[Path | str]:
+def _java(context: RuntimeContext) -> list[Path | str]:
     return [context.tools.java, "-jar", context.tools.headlessmc]
 
 
-def _assert_compatible(context: ProbeContext, side: str) -> None:
+def _assert_compatible(context: RuntimeContext, side: str) -> None:
     instance = context.instance
     if instance.side != side:
         raise RuntimeError(
-            f"{side} probe cannot consume a {instance.side} prepared instance"
+            f"{side} test cannot consume a {instance.side} prepared instance"
         )
     if instance.loader != "neoforge":
         raise RuntimeError(f"Unsupported loader: {instance.loader}")
@@ -69,7 +71,7 @@ def _assert_compatible(context: ProbeContext, side: str) -> None:
         )
 
 
-def _install_client(context: ProbeContext, minecraft: Path) -> None:
+def _install_client(context: RuntimeContext, minecraft: Path) -> None:
     instance = context.instance
     vanilla_json = (
         minecraft / "versions" / instance.minecraft / f"{instance.minecraft}.json"
@@ -112,7 +114,7 @@ def _accept_minecraft_eula(game_dir: Path) -> None:
     _write(
         game_dir / "eula.txt",
         [
-            "# Accepted by the explicitly requested bertie-ci server probe.",
+            "# Accepted by the explicitly requested bertie-ci server test.",
             "# https://aka.ms/MinecraftEULA",
             "eula=true",
         ],
@@ -124,7 +126,8 @@ def _write_server_readiness_test(work: Path, timeout_seconds: int) -> Path:
     # HeadlessMC otherwise applies an independent 120-second default to the
     # readiness marker. Keep enough of the command deadline for its process
     # cleanup after the test sends ``stop``.
-    readiness_timeout = max(1, timeout_seconds - 150)
+    cleanup_margin = min(150, max(1, timeout_seconds // 10))
+    readiness_timeout = max(1, timeout_seconds - cleanup_margin)
     target = work / "server-readiness-test.json"
     target.write_text(
         json.dumps(
@@ -155,12 +158,41 @@ def _command_test_was_recorded(runtime_log: Path) -> bool:
     )
 
 
-def _install_client_test_mods(mods: Path, test_mods: tuple[Path, ...]) -> None:
-    for index, test_mod in enumerate(test_mods, start=1):
-        source = test_mod.resolve(strict=True)
-        if source.suffix.lower() != ".jar":
-            raise RuntimeError(f"Client test mod is not a JAR: {source}")
-        replace_file(source, mods / f"bertie-ci-client-test-{index}.jar")
+def _resolve_test_mod(test_mod: Path) -> Path:
+    source = test_mod.resolve(strict=True)
+    if source.is_dir():
+        candidates = sorted(
+            path.resolve(strict=True)
+            for path in source.iterdir()
+            if path.is_file()
+            and path.suffix.lower() == ".jar"
+            and not path.name.lower().endswith(("-sources.jar", "-javadoc.jar"))
+        )
+        if len(candidates) != 1:
+            raise RuntimeError(
+                f"Expected one test mod JAR in {source}, found {len(candidates)}"
+            )
+        source = candidates[0]
+    if not source.is_file() or source.suffix.lower() != ".jar":
+        raise RuntimeError(f"Test mod is not a JAR: {source}")
+    return source
+
+
+def _install_test_mods(mods: Path, test_mods: tuple[Path, ...]) -> None:
+    sources = tuple(_resolve_test_mod(test_mod) for test_mod in test_mods)
+    mods.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".bertie-ci-test-", dir=mods) as temporary:
+        staged = []
+        for index, source in enumerate(sources, start=1):
+            target = Path(temporary) / f"bertie-ci-test-{index}.jar"
+            shutil.copy2(source, target)
+            staged.append(target)
+
+        for pattern in ("bertie-ci-test-*.jar", "bertie-ci-client-test-*.jar"):
+            for stale in mods.glob(pattern):
+                remove_file(stale)
+        for source in staged:
+            replace_file(source, mods / source.name)
 
 
 def _assert_required_log_markers(
@@ -172,13 +204,11 @@ def _assert_required_log_markers(
     missing = [marker for marker in required_log_markers if marker not in text]
     if missing:
         formatted = ", ".join(repr(marker) for marker in missing)
-        raise RuntimeError(
-            f"Client runtime log is missing required marker(s): {formatted}"
-        )
+        raise RuntimeError(f"Runtime log is missing required marker(s): {formatted}")
 
 
-def run_client_probe(
-    context: ProbeContext,
+def run_client_test(
+    context: RuntimeContext,
     timeout_seconds: int,
     max_memory: str,
     *,
@@ -189,12 +219,14 @@ def run_client_probe(
     if minimum_game_tests < 0:
         raise RuntimeError("minimum_game_tests cannot be negative")
     _assert_compatible(context, "client")
-    work = _reset_probe(context.work)
+    if not isinstance(context.tools, ClientRuntimeTools):
+        raise RuntimeError("Client runtime tools are required for a client test")
+    work = _reset_runtime(context.work)
     game_dir = context.instance.game_dir
     mods = game_dir / "mods"
     mods.mkdir(parents=True, exist_ok=True)
     replace_file(context.tools.mc_runtime_test, mods / "bertie-ci-mc-runtime-test.jar")
-    _install_client_test_mods(mods, test_mods)
+    _install_test_mods(mods, test_mods)
     minecraft = (context.cache / "minecraft").resolve()
     minecraft.mkdir(parents=True, exist_ok=True)
 
@@ -222,7 +254,7 @@ def run_client_probe(
         game_dir / "options.txt",
         {"onboardAccessibility": "false", "pauseOnLostFocus": "false"},
     )
-    # NeoForge's early-loading splash is a second GL surface the world-join probe
+    # NeoForge's early-loading splash is a second GL surface the world-join test
     # never needs. Do not replace a pack's existing FML configuration.
     fml_config = game_dir / "config" / "fml.toml"
     if not fml_config.is_file():
@@ -251,17 +283,19 @@ def run_client_probe(
     print(f"Client {purpose} passed. Logs: {work}", flush=True)
 
 
-def run_server_probe(
-    context: ProbeContext,
+def run_server_test(
+    context: RuntimeContext,
     timeout_seconds: int,
     max_memory: str,
     *,
     command_test: Path | None = None,
-    accept_post_success_exit: bool = True,
+    test_mods: tuple[Path, ...] = (),
+    required_log_markers: tuple[str, ...] = (),
 ) -> None:
     _assert_compatible(context, "server")
-    work = _reset_probe(context.work)
+    work = _reset_runtime(context.work)
     game_dir = context.instance.game_dir
+    _install_test_mods(game_dir / "mods", test_mods)
     minecraft = (context.cache / "minecraft").resolve()
     minecraft.mkdir(parents=True, exist_ok=True)
     test = (
@@ -322,7 +356,7 @@ def run_server_probe(
     # readiness run. A large modpack can fill that preliminary process's output
     # pipe during mod discovery, so provision the same accepted state directly.
     _accept_minecraft_eula(game_dir)
-    purpose = "readiness probe" if command_test is None else "project command suite"
+    purpose = "readiness" if command_test is None else "project command suite"
     print(f"Launching dedicated-server {purpose}", flush=True)
     runtime_log = work / "runtime.log"
     try:
@@ -333,15 +367,19 @@ def run_server_probe(
             timeout_seconds=timeout_seconds,
         )
     except subprocess.CalledProcessError:
-        # HeadlessMC waits for the child after the readiness test succeeds. A
-        # large pack can exceed its two-minute shutdown grace period and be
-        # force-terminated, producing a non-zero child status. Readiness is the
-        # probe contract, so only accept that status when HeadlessMC itself
-        # recorded the successful test first.
-        if not accept_post_success_exit or not _command_test_was_recorded(runtime_log):
+        # HeadlessMC waits for the child after its command test succeeds. A large
+        # pack can exceed the two-minute shutdown grace period and be force-
+        # terminated after the selected scenario has already passed. The command
+        # test is the success boundary for default and project-owned scenarios.
+        if not _command_test_was_recorded(runtime_log):
             raise
         print(
-            "Readiness passed; ignoring the server's post-readiness exit status.",
+            "Server scenario passed; ignoring its post-success exit status.",
             flush=True,
         )
+    if not _command_test_was_recorded(runtime_log):
+        raise RuntimeError(
+            f"Dedicated-server {purpose} did not report scenario success; see {runtime_log}"
+        )
+    _assert_required_log_markers(runtime_log, required_log_markers)
     print(f"Dedicated-server {purpose} passed. Logs: {work}", flush=True)

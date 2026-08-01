@@ -9,10 +9,13 @@ from pathlib import Path
 
 from .artifact import find_artifact, stage_artifact
 from .config import (
+    load_client_runtime_tools,
+    load_fixture_tools,
     load_java,
+    load_pack_tools,
     load_packwiz,
     load_packwiz_installer,
-    load_tools,
+    load_server_runtime_tools,
     load_versions,
 )
 from .gradle import (
@@ -25,10 +28,9 @@ from .instance import (
     load_instance,
     prepare_mod_instance,
     prepare_pack_instance,
-    resolve_pack,
 )
 from .pack import export_client_pack, export_server_pack, validate_pack
-from .runtime import ProbeContext, run_client_probe, run_server_probe
+from .runtime import RuntimeContext, run_client_test, run_server_test
 
 
 def _add_project(
@@ -62,37 +64,49 @@ def _nonnegative_int(value: str) -> int:
     return parsed
 
 
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be positive")
+    return parsed
+
+
 def _optional_path(value: str) -> Path | None:
     """Translate an empty adapter input into an omitted optional path."""
     return Path(value) if value else None
 
 
-def _add_probe(
+def _add_runtime(
     parser: argparse.ArgumentParser, default_timeout: int, default_memory: str
 ) -> None:
     parser.add_argument("--instance", type=Path, required=True)
     parser.add_argument("--work-dir", type=Path)
     parser.add_argument("--cache-dir", type=Path)
     parser.add_argument(
-        "--timeout", type=int, default=default_timeout, metavar="SECONDS"
+        "--timeout", type=_positive_int, default=default_timeout, metavar="SECONDS"
     )
     parser.add_argument("--max-memory", type=_memory, default=default_memory)
 
 
-def _add_legacy_runtime(parser: argparse.ArgumentParser, default_timeout: int) -> None:
-    _add_project(parser, "mod checkout")
+def _add_test_extensions(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
-        "--artifact",
-        type=Path,
-        help="runtime JAR or a directory containing exactly one runtime JAR",
+        "--test-mod",
+        action="append",
+        default=[],
+        type=_optional_path,
+        metavar="JAR",
+        help=(
+            "optional test-only mod JAR or directory containing one JAR; "
+            "may be repeated"
+        ),
     )
-    _add_fixture(parser)
-    parser.add_argument("--work-dir", type=Path)
-    parser.add_argument("--cache-dir", type=Path)
     parser.add_argument(
-        "--timeout", type=int, default=default_timeout, metavar="SECONDS"
+        "--require-log",
+        action="append",
+        default=[],
+        metavar="TEXT",
+        help="fail unless the runtime log contains this exact text; may be repeated",
     )
-    parser.add_argument("--max-memory", type=_memory, default="4G")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -132,7 +146,9 @@ def _parser() -> argparse.ArgumentParser:
     )
     _add_project(gametest, "mod checkout")
     gametest.add_argument("--work-dir", type=Path)
-    gametest.add_argument("--timeout", type=int, default=15 * 60, metavar="SECONDS")
+    gametest.add_argument(
+        "--timeout", type=_positive_int, default=15 * 60, metavar="SECONDS"
+    )
 
     prepare_mod = subcommands.add_parser(
         "prepare-mod-instance",
@@ -151,21 +167,12 @@ def _parser() -> argparse.ArgumentParser:
     prepare_pack.add_argument("--side", choices=("client", "server"), required=True)
     prepare_pack.add_argument("--output-dir", type=Path, required=True)
 
-    client_probe = subcommands.add_parser(
-        "client-probe", help="run a world-join assertion against a prepared instance"
-    )
-    _add_probe(client_probe, 25 * 60, "4G")
-
-    server_probe = subcommands.add_parser(
-        "server-probe", help="run a readiness assertion against a prepared instance"
-    )
-    _add_probe(server_probe, 15 * 60, "3G")
-
     client_test = subcommands.add_parser(
         "client-test",
-        help="run project-owned assertions in a prepared client instance",
+        help="run the world-join scenario and optional extensions in a prepared client",
     )
-    _add_probe(client_test, 25 * 60, "4G")
+    _add_runtime(client_test, 25 * 60, "4G")
+    _add_test_extensions(client_test)
     client_test.add_argument(
         "--minimum-game-tests",
         type=_nonnegative_int,
@@ -173,48 +180,24 @@ def _parser() -> argparse.ArgumentParser:
         metavar="COUNT",
         help="fail unless mc-runtime-test discovers at least this many GameTests",
     )
-    client_test.add_argument(
-        "--test-mod",
-        action="append",
-        default=[],
-        type=_optional_path,
-        metavar="JAR",
-        help="optional test-only mod JAR to install; may be repeated",
-    )
-    client_test.add_argument(
-        "--require-log",
-        action="append",
-        default=[],
-        metavar="TEXT",
-        help="fail unless the client runtime log contains this exact text; may be repeated",
-    )
 
     server_test = subcommands.add_parser(
         "server-test",
-        help="run a project-owned HeadlessMC command test against a prepared server",
+        help="run readiness or a project-owned scenario in a prepared server",
     )
-    _add_probe(server_test, 15 * 60, "3G")
+    _add_runtime(server_test, 15 * 60, "3G")
+    _add_test_extensions(server_test)
     server_test.add_argument(
         "--command-test",
-        type=Path,
-        required=True,
+        type=_optional_path,
         metavar="JSON",
-        help="project-owned HeadlessMC command-test specification",
+        help="optional project-owned HeadlessMC command-test specification",
     )
 
     pack_validate = subcommands.add_parser(
         "pack-validate", help="validate a packwiz checkout without modifying it"
     )
     _add_project(pack_validate, "packwiz checkout")
-
-    pack_resolve = subcommands.add_parser(
-        "pack-resolve", help="verify that every selected pack download resolves"
-    )
-    _add_project(pack_resolve, "packwiz checkout")
-    pack_resolve.add_argument(
-        "--side", choices=("client", "server", "both"), default="both"
-    )
-    pack_resolve.add_argument("--output-dir", type=Path, required=True)
 
     pack_export_client = subcommands.add_parser(
         "pack-export-client", help="export a Modrinth client pack"
@@ -228,15 +211,6 @@ def _parser() -> argparse.ArgumentParser:
     _add_project(pack_export_server, "packwiz checkout")
     pack_export_server.add_argument("--output", type=Path, required=True)
 
-    client = subcommands.add_parser(
-        "client", help="compatibility wrapper: prepare a mod and run client-probe"
-    )
-    _add_legacy_runtime(client, 25 * 60)
-
-    server = subcommands.add_parser(
-        "server", help="compatibility wrapper: prepare a mod and run server-probe"
-    )
-    _add_legacy_runtime(server, 15 * 60)
     return parser
 
 
@@ -248,15 +222,13 @@ def _under_project(project: Path, path: Path) -> Path:
     return path.resolve() if path.is_absolute() else (project / path).resolve()
 
 
-def _cache(path: Path | None, project: Path | None = None) -> Path:
+def _cache(path: Path | None) -> Path:
     default = (
         Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "bertie-ci"
     )
     if path is None:
         return default.resolve()
-    if path.is_absolute() or project is None:
-        return path.resolve()
-    return (project / path).resolve()
+    return path.resolve()
 
 
 def _fixture_profiles(values: list[str]) -> list[str]:
@@ -304,76 +276,46 @@ def _run_unit_test(args: argparse.Namespace) -> None:
     print("JVM unit tests passed.", flush=True)
 
 
-def _probe_context(
-    descriptor: Path, work: Path | None, cache: Path | None
-) -> ProbeContext:
+def _runtime_context(
+    descriptor: Path, work: Path | None, cache: Path | None, side: str
+) -> RuntimeContext:
     descriptor = descriptor.resolve(strict=True)
     instance = load_instance(descriptor)
-    probe_work = (work or descriptor.parent).resolve()
-    probe_cache = _cache(cache)
-    probe_cache.mkdir(parents=True, exist_ok=True)
-    return ProbeContext(
-        probe_work, probe_cache, instance, load_versions(), load_tools()
-    )
-
-
-def _run_probe(
-    args: argparse.Namespace, side: str, project_owned: bool = False
-) -> None:
-    context = _probe_context(args.instance, args.work_dir, args.cache_dir)
-    if side == "client":
-        minimum_game_tests = args.minimum_game_tests if project_owned else 0
-        required_log_markers = (
-            tuple(marker for marker in args.require_log if marker)
-            if project_owned
-            else ()
+    if instance.side != side:
+        raise RuntimeError(
+            f"{side} test cannot consume a {instance.side} prepared instance"
         )
-        if project_owned and minimum_game_tests == 0 and not required_log_markers:
-            raise RuntimeError(
-                "client-test requires --minimum-game-tests or --require-log"
-            )
-        run_client_probe(
+    runtime_work = (work or descriptor.parent).resolve()
+    runtime_cache = _cache(cache)
+    runtime_cache.mkdir(parents=True, exist_ok=True)
+    tools = (
+        load_client_runtime_tools() if side == "client" else load_server_runtime_tools()
+    )
+    return RuntimeContext(runtime_work, runtime_cache, instance, load_versions(), tools)
+
+
+def _run_test(args: argparse.Namespace, side: str) -> None:
+    context = _runtime_context(args.instance, args.work_dir, args.cache_dir, side)
+    test_mods = tuple(path.resolve() for path in args.test_mod if path is not None)
+    required_log_markers = tuple(marker for marker in args.require_log if marker)
+    if side == "client":
+        run_client_test(
             context,
             args.timeout,
             args.max_memory,
-            minimum_game_tests=minimum_game_tests,
-            test_mods=(
-                tuple(path.resolve() for path in args.test_mod if path is not None)
-                if project_owned
-                else ()
-            ),
+            minimum_game_tests=args.minimum_game_tests,
+            test_mods=test_mods,
             required_log_markers=required_log_markers,
         )
     else:
-        run_server_probe(
+        run_server_test(
             context,
             args.timeout,
             args.max_memory,
-            command_test=args.command_test if project_owned else None,
-            accept_post_success_exit=not project_owned,
+            command_test=args.command_test,
+            test_mods=test_mods,
+            required_log_markers=required_log_markers,
         )
-
-
-def _run_legacy(args: argparse.Namespace, side: str) -> None:
-    project = _project(args)
-    output = _under_project(project, args.work_dir or Path(".bertie-ci") / side)
-    artifact = args.artifact
-    if artifact is not None and not artifact.is_absolute():
-        artifact = project / artifact
-    descriptor = prepare_mod_instance(
-        project,
-        artifact,
-        _fixture_profiles(args.fixture),
-        side,
-        output,
-        load_versions(),
-        load_tools(),
-    )
-    context = _probe_context(descriptor, output, _cache(args.cache_dir, project))
-    if side == "client":
-        run_client_probe(context, args.timeout, args.max_memory)
-    else:
-        run_server_probe(context, args.timeout, args.max_memory)
 
 
 def tolerate_unencodable_output() -> None:
@@ -415,7 +357,7 @@ def main() -> None:
                     args.side,
                     _under_project(project, args.output_dir),
                     load_versions(),
-                    load_tools(),
+                    load_fixture_tools(),
                 )
                 print(f"Prepared instance: {descriptor}", flush=True)
             case "prepare-pack-instance":
@@ -424,13 +366,11 @@ def main() -> None:
                     project,
                     args.side,
                     _under_project(project, args.output_dir),
-                    load_tools(),
+                    load_pack_tools(),
                 )
                 print(f"Prepared instance: {descriptor}", flush=True)
-            case "client-probe" | "server-probe":
-                _run_probe(args, args.command.removesuffix("-probe"))
             case "client-test" | "server-test":
-                _run_probe(args, args.command.removesuffix("-test"), project_owned=True)
+                _run_test(args, args.command.removesuffix("-test"))
             case "pack-validate":
                 summary = validate_pack(_project(args), load_packwiz())
                 print(
@@ -440,15 +380,6 @@ def main() -> None:
                     f"{summary.config_files} config files",
                     flush=True,
                 )
-            case "pack-resolve":
-                project = _project(args)
-                count = resolve_pack(
-                    project,
-                    args.side,
-                    _under_project(project, args.output_dir),
-                    load_tools(),
-                )
-                print(f"Resolved {count} mod JARs for side={args.side}", flush=True)
             case "pack-export-client":
                 project = _project(args)
                 output = export_client_pack(
@@ -463,8 +394,6 @@ def main() -> None:
                     load_packwiz_installer(),
                 )
                 print(f"Exported server pack: {output}", flush=True)
-            case "client" | "server":
-                _run_legacy(args, args.command)
     except (OSError, RuntimeError, subprocess.SubprocessError) as error:
         parser.exit(2, f"bertie-ci: {error}\n")
 

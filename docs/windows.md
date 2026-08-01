@@ -3,7 +3,7 @@
 Nix is the supported dependency provider on Linux, and there is no usable Nix on native
 Windows. The commands themselves are ordinary Python and do not assume a POSIX shell, so
 Windows supplies the same dependencies through environment variables instead. This
-document is the Windows equivalent of the `nix run` lines in the README.
+document is the Windows equivalent of the Nix-provided setup in the README.
 
 Everything here is native Windows. WSL is not required, and if you do use WSL you are on
 the Linux path and should follow the README instead.
@@ -15,17 +15,19 @@ the Linux path and should follow the README instead.
 | `build` | Yes | Gradle 8 and Java 21 |
 | `unit-test` | Yes | Gradle 8 and Java 21 |
 | `gametest` | Yes | Gradle 8 and Java 21 |
-| `server` | Yes | Java 21 and the three tool JARs |
-| `client` | Yes, but not headless | Java 21, the three tool JARs, and an interactive desktop session |
+| `prepare-mod-instance` | Yes | Java 21, packwiz-installer, and fixture metadata |
+| `prepare-pack-instance` | Yes | Java 21 and packwiz-installer |
+| `server-test` | Yes | Java 21 and HeadlessMC |
+| `client-test` | Yes, but not headless | Java 21, HeadlessMC, mc-runtime-test, and an interactive desktop session |
 
 `build`, `unit-test` and `gametest` invoke the Gradle executable selected by
 `BERTIE_CI_GRADLE`, falling back to `gradle` on `PATH`. Projects do not carry wrappers.
 
-`client` is the one command that behaves differently. Windows has no Xvfb equivalent, so
-the probe runs against the desktop session you are logged into: a real Minecraft window
-opens, takes focus, and closes itself when the probe finishes. It cannot run over SSH, as
-a service, or on a locked workstation. Treat `client` on Windows as a foreground task that
-occupies the machine for its duration; Linux with Xvfb remains the way to run it
+`client-test` is the one command that behaves differently. Windows has no Xvfb equivalent,
+so the test runs against the desktop session you are logged into: a real Minecraft window
+opens, takes focus, and closes itself when the test finishes. It cannot run over SSH, as a
+service, or on a locked workstation. Treat `client-test` on Windows as a foreground task
+that occupies the machine for its duration; Linux with Xvfb remains the way to run it
 unattended.
 
 ## Prerequisites
@@ -106,12 +108,12 @@ A relative `--output-dir` resolves against `--project`, not the current director
 command above writes to `C:\src\bertie-tiers\.bertie-ci\artifact`. GameTest logs land in
 `<project>\.bertie-ci\gametest.log`.
 
-## Tool JARs for the runtime probes
+## Tool JARs for preparation and runtime tests
 
-`client` and `server` need the three pinned third-party JARs that the Nix flake supplies
-on Linux. Both commands validate all three up front, so `server` wants the
-`mc-runtime-test` JAR present even though only `client` launches it. Download them once
-and point the environment at them. The versions and hashes below are the ones in
+The commands load only the tools their operation needs: instance preparation uses
+packwiz-installer, `server-test` uses HeadlessMC, and `client-test` adds mc-runtime-test.
+Download the required JARs once and point the environment at them. The versions and
+hashes below are the ones in
 [`versions.json`](../versions.json); if that file has moved on, it is authoritative and
 this table is not.
 
@@ -157,21 +159,25 @@ $env:BERTIE_CI_MCRT_JAR = "$tools\mc-runtime-test-1.21.1-4.5.1-neoforge-release.
 $env:BERTIE_CI_PACKWIZ_INSTALLER_JAR = "$tools\packwiz-installer.jar"
 ```
 
-## Running the runtime probes
+## Preparing and testing instances
 
-Build first, then hand the artifact to each probe:
+Build once, prepare each desired side, then pass its provider-neutral descriptor to the
+same runtime commands used for full packs:
 
 ```powershell
 python -m bertie_ci build --project C:\src\bertie-tiers --output-dir .bertie-ci\artifact
-python -m bertie_ci server --project C:\src\bertie-tiers --artifact .bertie-ci\artifact
-python -m bertie_ci client --project C:\src\bertie-tiers --artifact .bertie-ci\artifact
+python -m bertie_ci prepare-mod-instance --project C:\src\bertie-tiers --artifact .bertie-ci\artifact --side server --output-dir .bertie-ci\server
+python -m bertie_ci server-test --instance C:\src\bertie-tiers\.bertie-ci\server\instance.json
+python -m bertie_ci prepare-mod-instance --project C:\src\bertie-tiers --artifact .bertie-ci\artifact --side client --output-dir .bertie-ci\client
+python -m bertie_ci client-test --instance C:\src\bertie-tiers\.bertie-ci\client\instance.json
 ```
 
 Mods with external runtime dependencies select canonical mods or aggregate fixture
 profiles exactly as on Linux:
 
 ```powershell
-python -m bertie_ci client --project C:\src\forge-ink --fixture forbidden-arcanus,irons-spells
+python -m bertie_ci prepare-mod-instance --project C:\src\forge-ink --artifact .bertie-ci\artifact --fixture forbidden-arcanus,irons-spells --side client --output-dir .bertie-ci\client
+python -m bertie_ci client-test --instance C:\src\forge-ink\.bertie-ci\client\instance.json
 ```
 
 The first run downloads Minecraft and the pinned NeoForge build. Both land in the cache,
@@ -183,9 +189,9 @@ not the project, and are reused by later runs.
 | --- | --- | --- |
 | `BERTIE_CI_JAVA_HOME` | JDK root; takes precedence over `JAVA_HOME` | unset |
 | `BERTIE_CI_GRADLE` | Gradle executable | `gradle` from `PATH` |
-| `BERTIE_CI_HEADLESSMC_JAR` | HeadlessMC launcher JAR | required for `client`/`server` |
-| `BERTIE_CI_MCRT_JAR` | `mc-runtime-test` probe JAR | required for `client`/`server` |
-| `BERTIE_CI_PACKWIZ_INSTALLER_JAR` | packwiz-installer JAR | required for `client`/`server` |
+| `BERTIE_CI_HEADLESSMC_JAR` | HeadlessMC launcher JAR | required for client/server tests |
+| `BERTIE_CI_MCRT_JAR` | `mc-runtime-test` JAR | required for client tests |
+| `BERTIE_CI_PACKWIZ_INSTALLER_JAR` | packwiz-installer JAR | required for instance preparation |
 | `BERTIE_CI_VERSIONS` | Path to `versions.json` | repository root |
 | `BERTIE_CI_FIXTURES` | Path to fixture aggregates and defaults | `fixtures/` in the repository |
 | `BERTIE_CI_FIXTURE_PACK` | Canonical `bertie-pack` checkout | required when installing fixtures |
@@ -205,7 +211,7 @@ too deep, or at a path that no longer exists. The runner expects `<JAVA_HOME>\bi
 `BERTIE_CI_GRADLE` at the executable. Gradle 9 is not supported by the current
 ModDevGradle setup.
 
-**A build or probe fails with a path that stops mid-way through, or a `Malformed \uxxxx
+**A build or runtime test fails with a path that stops mid-way through, or a `Malformed \uxxxx
 encoding` error** — this was a real defect and is fixed. Windows paths were written into
 HeadlessMC's `config.properties` without escaping, and `java.util.Properties` treats a
 backslash as an escape character, so `C:\Users\berlord` was read back as `C:Usersberlord`
@@ -221,5 +227,5 @@ directory open. Close it and retry.
 extracts. Excluding the cache directory and the project's `.bertie-ci` directory is the
 usual remedy.
 
-**The client probe fails on a remote or locked session** — expected. See *What runs*
-above; `client` needs an interactive desktop.
+**The client test fails on a remote or locked session** — expected. See *What runs*
+above; `client-test` needs an interactive desktop.
