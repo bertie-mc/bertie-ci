@@ -1,0 +1,29 @@
+name: Build client test mod
+description: Build and stage the test-only mod from a project's clientTest source set
+
+inputs:
+  project:
+    description: Path to the mod checkout
+    required: false
+    default: .
+  artifact-dir:
+    description: Directory for the staged test-only mod, relative to the project
+    required: false
+    default: .bertie-ci/client-test-mod
+
+outputs:
+  artifact:
+    description: Stable path to the staged test-only mod JAR
+    value: ${{ inputs.artifact-dir }}/client-test-mod.jar
+
+runs:
+  using: composite
+  steps:
+    - name: Build and stage client test mod
+      shell: bash
+      env:
+        BERTIE_CI_PROJECT: ${{ inputs.project }}
+        BERTIE_CI_ARTIFACT_DIR: ${{ inputs.artifact-dir }}
+      run: >-
+        bertie-ci build-client-test-mod --project "$BERTIE_CI_PROJECT"
+        --output-dir "$BERTIE_CI_ARTIFACT_DIR"

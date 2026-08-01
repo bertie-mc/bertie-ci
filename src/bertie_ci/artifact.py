@@ -32,14 +32,16 @@ def find_artifact(project: Path, requested: Path | None) -> Path:
     return artifacts[0].resolve(strict=True)
 
 
-def stage_artifact(artifact: Path, output_dir: Path) -> Path:
+def stage_artifact(
+    artifact: Path, output_dir: Path, filename: str | None = None
+) -> Path:
     artifact = artifact.resolve(strict=True)
     output_dir.mkdir(parents=True, exist_ok=True)
     output_dir = output_dir.resolve(strict=True)
     if output_dir == artifact.parent:
         raise RuntimeError("Artifact output directory must differ from build/libs")
 
-    destination = output_dir / artifact.name
+    destination = output_dir / (filename or artifact.name)
     unexpected = [path for path in output_dir.glob("*.jar") if path != destination]
     if unexpected:
         names = ", ".join(path.name for path in unexpected)

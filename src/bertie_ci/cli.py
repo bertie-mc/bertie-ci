@@ -15,7 +15,12 @@ from .config import (
     load_tools,
     load_versions,
 )
-from .gradle import assemble_mod, run_gametests, run_unit_tests
+from .gradle import (
+    assemble_client_test_mod,
+    assemble_mod,
+    run_gametests,
+    run_unit_tests,
+)
 from .instance import (
     load_instance,
     prepare_mod_instance,
@@ -103,6 +108,18 @@ def _parser() -> argparse.ArgumentParser:
         "--output-dir",
         type=Path,
         help="copy the single releaseable JAR into this artifact directory",
+    )
+
+    build_client_test_mod = subcommands.add_parser(
+        "build-client-test-mod",
+        help="build and stage the test-only mod from the clientTest source set",
+    )
+    _add_project(build_client_test_mod, "mod checkout")
+    build_client_test_mod.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path(".bertie-ci/client-test-mod"),
+        help="directory for the staged client-test-mod.jar",
     )
 
     unit_test = subcommands.add_parser(
@@ -258,6 +275,17 @@ def _run_build(args: argparse.Namespace) -> None:
     print(f"Built artifact: {artifact}", flush=True)
 
 
+def _run_build_client_test_mod(args: argparse.Namespace) -> None:
+    project = _project(args)
+    java = load_java()
+    artifact = assemble_client_test_mod(
+        project,
+        java.parent.parent,
+        _under_project(project, args.output_dir),
+    )
+    print(f"Built client test mod: {artifact}", flush=True)
+
+
 def _run_gametest(args: argparse.Namespace) -> None:
     project = _project(args)
     work = _under_project(project, args.work_dir or Path(".bertie-ci"))
@@ -369,6 +397,8 @@ def main() -> None:
         match args.command:
             case "build":
                 _run_build(args)
+            case "build-client-test-mod":
+                _run_build_client_test_mod(args)
             case "unit-test":
                 _run_unit_test(args)
             case "gametest":

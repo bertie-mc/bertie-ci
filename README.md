@@ -16,7 +16,7 @@ lines are the Linux path; on native Windows there is no usable Nix, so follow
 [`docs/windows.md`](docs/windows.md) instead.
 
 ```bash
-bertie_ci_package="$(nix build github:bertie-mc/bertie-ci/v3.7.2#bertie-ci \
+bertie_ci_package="$(nix build github:bertie-mc/bertie-ci/v3.8.0#bertie-ci \
   --no-link --print-out-paths)"
 export PATH="$bertie_ci_package/bin:$PATH"
 
@@ -50,12 +50,16 @@ client test supplies a test-only mod containing its own assertions. The suite ca
 GameTests, an exact project-owned success marker, or both:
 
 ```bash
+bertie-ci build-client-test-mod --project . \
+  --output-dir .bertie-ci/client-test-mod
 bertie-ci client-test --instance .bertie-ci/client/instance.json \
-  --test-mod build/test-libs/example-client-tests.jar \
+  --test-mod .bertie-ci/client-test-mod/client-test-mod.jar \
   --require-log EXAMPLE_CLIENT_ASSERTIONS_PASSED
 ```
 
-`mc-runtime-test` creates and joins the world. The test-only mod owns the assertions and
+`build-client-test-mod` runs the conventional `clientTestJar` task and stages its single
+runtime JAR under a stable name. `mc-runtime-test` creates and joins the world. The
+test-only mod owns the assertions and
 emits its stable marker only after they pass; `bertie-ci` fails closed if the marker is
 absent. Structure-backed suites can additionally use `--minimum-game-tests`; their NBT
 fixtures belong under the project's test resource source set, never in the release JAR.
@@ -115,21 +119,22 @@ runs `actions/setup` once; it installs Nix, builds the pinned package once, and 
 wrapped `bertie-ci` command to `PATH`. Operational actions call that command directly and
 do not reevaluate Nixpkgs.
 
-- `bertie-mc/bertie-ci/actions/setup@v3.7.2`
-- `bertie-mc/bertie-ci/actions/build@v3.7.2`
-- `bertie-mc/bertie-ci/actions/unit-test@v3.7.2`
-- `bertie-mc/bertie-ci/actions/gametest@v3.7.2`
-- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.7.2`
-- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.7.2`
-- `bertie-mc/bertie-ci/actions/client-test@v3.7.2`
-- `bertie-mc/bertie-ci/actions/server-test@v3.7.2`
-- `bertie-mc/bertie-ci/actions/client-probe@v3.7.2`
-- `bertie-mc/bertie-ci/actions/server-probe@v3.7.2`
-- `bertie-mc/bertie-ci/actions/pack-validate@v3.7.2`
-- `bertie-mc/bertie-ci/actions/pack-resolve@v3.7.2`
-- `bertie-mc/bertie-ci/actions/pack-export-client@v3.7.2`
-- `bertie-mc/bertie-ci/actions/pack-export-server@v3.7.2`
-- `bertie-mc/bertie-ci/actions/github-release@v3.7.2`
+- `bertie-mc/bertie-ci/actions/setup@v3.8.0`
+- `bertie-mc/bertie-ci/actions/build@v3.8.0`
+- `bertie-mc/bertie-ci/actions/build-client-test-mod@v3.8.0`
+- `bertie-mc/bertie-ci/actions/unit-test@v3.8.0`
+- `bertie-mc/bertie-ci/actions/gametest@v3.8.0`
+- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.8.0`
+- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.8.0`
+- `bertie-mc/bertie-ci/actions/client-test@v3.8.0`
+- `bertie-mc/bertie-ci/actions/server-test@v3.8.0`
+- `bertie-mc/bertie-ci/actions/client-probe@v3.8.0`
+- `bertie-mc/bertie-ci/actions/server-probe@v3.8.0`
+- `bertie-mc/bertie-ci/actions/pack-validate@v3.8.0`
+- `bertie-mc/bertie-ci/actions/pack-resolve@v3.8.0`
+- `bertie-mc/bertie-ci/actions/pack-export-client@v3.8.0`
+- `bertie-mc/bertie-ci/actions/pack-export-server@v3.8.0`
+- `bertie-mc/bertie-ci/actions/github-release@v3.8.0`
 
 Each owns one operation. Except for the GitHub-only publisher, operational actions expect
 the setup action to have placed `bertie-ci` on `PATH`. The build and test actions do not
@@ -155,31 +160,34 @@ on:
 
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.7.2
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.8.0
 
   unit-test:
-    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.7.2
+    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.8.0
 
   gametest:
-    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.7.2
+    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.8.0
 
-  client:
+  client-test:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.7.2
+    uses: bertie-mc/bertie-ci/.github/workflows/client-test.yml@v3.8.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
+      success-marker: EXAMPLE_CLIENT_ASSERTIONS_PASSED
 
   server:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.7.2
+    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.8.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
 ```
 
 `build-mod.yml` only assembles and uploads a JAR. `unit-test.yml` only runs ordinary JVM
-tests. `client.yml` and `server.yml` only download and test the named artifact.
+tests. `client-test.yml` composes the optional test-mod build, prepared instance and
+project-owned runtime assertions. `client.yml` and `server.yml` remain explicit generic
+smoke presets.
 `gametest.yml` only runs the development-runtime suite.
 `github-release.yml` only downloads and publishes a named artifact. A release therefore
 composes `build-mod.yml` followed by `github-release.yml`; it has no second build recipe.
@@ -187,13 +195,13 @@ composes `build-mod.yml` followed by `github-release.yml`; it has no second buil
 ```yaml
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.7.2
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.8.0
 
   publish:
     needs: build
     permissions:
       contents: write
-    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.7.2
+    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.8.0
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
 ```

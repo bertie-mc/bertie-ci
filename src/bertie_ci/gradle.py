@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from typing import Sequence
 
+from .artifact import find_artifact, stage_artifact
 from .process import run
 
 
@@ -33,6 +34,13 @@ def run_gradle(
 
 def assemble_mod(project: Path, java_home: Path) -> None:
     run_gradle(project, java_home, ["assemble"])
+
+
+def assemble_client_test_mod(project: Path, java_home: Path, output_dir: Path) -> Path:
+    """Build and stage the conventional clientTest test-only mod."""
+    run_gradle(project, java_home, ["clientTestJar"])
+    artifact = find_artifact(project, Path("build/test-libs"))
+    return stage_artifact(artifact, output_dir, "client-test-mod.jar")
 
 
 def run_unit_tests(project: Path, java_home: Path) -> None:

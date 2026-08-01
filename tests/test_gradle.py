@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from bertie_ci.artifact import find_artifact, stage_artifact
-from bertie_ci.gradle import run_gradle, verify_gametest_log
+from bertie_ci.gradle import assemble_client_test_mod, run_gradle, verify_gametest_log
 
 
 def test_run_gradle_uses_the_managed_executable(
@@ -30,6 +30,28 @@ def test_run_gradle_uses_the_managed_executable(
     ]
     assert invocation["cwd"] == tmp_path
     assert invocation["env"]["JAVA_HOME"] == str(java_home)
+
+
+def test_client_test_mod_build_has_a_stable_staged_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    test_libs = tmp_path / "build" / "test-libs"
+    test_libs.mkdir(parents=True)
+    source = test_libs / "example-client-tests.jar"
+    source.write_bytes(b"test mod")
+    tasks = []
+    monkeypatch.setattr(
+        "bertie_ci.gradle.run_gradle",
+        lambda _project, _java, requested: tasks.extend(requested),
+    )
+
+    staged = assemble_client_test_mod(
+        tmp_path, tmp_path / "jdk", tmp_path / ".bertie-ci" / "client-test-mod"
+    )
+
+    assert tasks == ["clientTestJar"]
+    assert staged.name == "client-test-mod.jar"
+    assert staged.read_bytes() == b"test mod"
 
 
 def _log(tmp_path: Path, text: str) -> Path:
