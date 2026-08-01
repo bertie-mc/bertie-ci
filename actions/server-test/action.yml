@@ -1,0 +1,43 @@
+name: Run project server suite
+description: Run a project-owned HeadlessMC command test against a prepared server
+
+inputs:
+  instance:
+    description: Prepared server instance descriptor
+    required: true
+  command-test:
+    description: Project-owned HeadlessMC command-test JSON
+    required: true
+  work-dir:
+    description: Directory for HeadlessMC state and logs
+    required: true
+  cache-dir:
+    description: Directory for downloaded Minecraft files
+    required: false
+    default: .bertie-ci/cache
+  timeout:
+    description: Timeout in seconds
+    required: false
+    default: "900"
+  max-memory:
+    description: Maximum Java heap
+    required: false
+    default: 3G
+
+runs:
+  using: composite
+  steps:
+    - name: Run project server suite
+      shell: bash
+      env:
+        BERTIE_CI_INSTANCE: ${{ inputs.instance }}
+        BERTIE_CI_COMMAND_TEST: ${{ inputs.command-test }}
+        BERTIE_CI_WORK_DIR: ${{ inputs.work-dir }}
+        BERTIE_CI_CACHE_DIR: ${{ inputs.cache-dir }}
+        BERTIE_CI_TIMEOUT: ${{ inputs.timeout }}
+        BERTIE_CI_MAX_MEMORY: ${{ inputs.max-memory }}
+      run: >-
+        bertie-ci server-test --instance "$BERTIE_CI_INSTANCE"
+        --command-test "$BERTIE_CI_COMMAND_TEST"
+        --work-dir "$BERTIE_CI_WORK_DIR" --cache-dir "$BERTIE_CI_CACHE_DIR"
+        --timeout "$BERTIE_CI_TIMEOUT" --max-memory "$BERTIE_CI_MAX_MEMORY"

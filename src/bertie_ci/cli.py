@@ -50,6 +50,13 @@ def _memory(value: str) -> str:
     return value.upper()
 
 
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("value must be at least 1")
+    return parsed
+
+
 def _add_probe(
     parser: argparse.ArgumentParser, default_timeout: int, default_memory: str
 ) -> None:
@@ -131,6 +138,40 @@ def _parser() -> argparse.ArgumentParser:
         "server-probe", help="run a readiness assertion against a prepared instance"
     )
     _add_probe(server_probe, 15 * 60, "3G")
+
+    client_test = subcommands.add_parser(
+        "client-test",
+        help="run project-owned GameTests in a prepared client instance",
+    )
+    _add_probe(client_test, 25 * 60, "4G")
+    client_test.add_argument(
+        "--minimum-game-tests",
+        type=_positive_int,
+        required=True,
+        metavar="COUNT",
+        help="fail unless mc-runtime-test discovers at least this many GameTests",
+    )
+    client_test.add_argument(
+        "--test-mod",
+        action="append",
+        default=[],
+        type=Path,
+        metavar="JAR",
+        help="optional test-only mod JAR to install; may be repeated",
+    )
+
+    server_test = subcommands.add_parser(
+        "server-test",
+        help="run a project-owned HeadlessMC command test against a prepared server",
+    )
+    _add_probe(server_test, 15 * 60, "3G")
+    server_test.add_argument(
+        "--command-test",
+        type=Path,
+        required=True,
+        metavar="JSON",
+        help="project-owned HeadlessMC command-test specification",
+    )
 
     pack_validate = subcommands.add_parser(
         "pack-validate", help="validate a packwiz checkout without modifying it"
@@ -236,12 +277,28 @@ def _probe_context(
     )
 
 
-def _run_probe(args: argparse.Namespace, side: str) -> None:
+def _run_probe(
+    args: argparse.Namespace, side: str, project_owned: bool = False
+) -> None:
     context = _probe_context(args.instance, args.work_dir, args.cache_dir)
     if side == "client":
-        run_client_probe(context, args.timeout, args.max_memory)
+        run_client_probe(
+            context,
+            args.timeout,
+            args.max_memory,
+            minimum_game_tests=(args.minimum_game_tests if project_owned else 0),
+            test_mods=(
+                tuple(path.resolve() for path in args.test_mod) if project_owned else ()
+            ),
+        )
     else:
-        run_server_probe(context, args.timeout, args.max_memory)
+        run_server_probe(
+            context,
+            args.timeout,
+            args.max_memory,
+            command_test=args.command_test if project_owned else None,
+            accept_post_success_exit=not project_owned,
+        )
 
 
 def _run_legacy(args: argparse.Namespace, side: str) -> None:
@@ -317,6 +374,8 @@ def main() -> None:
                 print(f"Prepared instance: {descriptor}", flush=True)
             case "client-probe" | "server-probe":
                 _run_probe(args, args.command.removesuffix("-probe"))
+            case "client-test" | "server-test":
+                _run_probe(args, args.command.removesuffix("-test"), project_owned=True)
             case "pack-validate":
                 summary = validate_pack(_project(args), load_packwiz())
                 print(

@@ -8,8 +8,9 @@ import pytest
 from bertie_ci.artifact import find_artifact
 from bertie_ci.runtime import (
     _accept_minecraft_eula,
+    _command_test_was_recorded,
+    _install_client_test_mods,
     _reset_probe,
-    _server_readiness_was_recorded,
     _set_options,
     _write_server_readiness_test,
 )
@@ -137,18 +138,40 @@ def test_server_readiness_timeout_keeps_cleanup_margin(tmp_path: Path) -> None:
     assert test["timeout"] == 1
 
 
-def test_server_readiness_requires_headlessmc_success_marker(tmp_path: Path) -> None:
+def test_command_test_requires_headlessmc_success_marker(tmp_path: Path) -> None:
     runtime_log = tmp_path / "runtime.log"
     runtime_log.write_text(
         "[main/INFO] CommandTest was successful.\nMinecraft exited with code: 143\n",
         encoding="utf-8",
     )
 
-    assert _server_readiness_was_recorded(runtime_log)
+    assert _command_test_was_recorded(runtime_log)
 
 
-def test_server_readiness_rejects_missing_success_marker(tmp_path: Path) -> None:
+def test_command_test_rejects_missing_success_marker(tmp_path: Path) -> None:
     runtime_log = tmp_path / "runtime.log"
     runtime_log.write_text("CommandTest failed!\n", encoding="utf-8")
 
-    assert not _server_readiness_was_recorded(runtime_log)
+    assert not _command_test_was_recorded(runtime_log)
+
+
+def test_client_test_mods_are_staged_with_stable_names(tmp_path: Path) -> None:
+    mods = tmp_path / "mods"
+    mods.mkdir()
+    first = tmp_path / "first.jar"
+    second = tmp_path / "second.JAR"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+
+    _install_client_test_mods(mods, (first, second))
+
+    assert (mods / "bertie-ci-client-test-1.jar").read_bytes() == b"first"
+    assert (mods / "bertie-ci-client-test-2.jar").read_bytes() == b"second"
+
+
+def test_client_test_mod_rejects_non_jar(tmp_path: Path) -> None:
+    test_mod = tmp_path / "test-mod.zip"
+    test_mod.touch()
+
+    with pytest.raises(RuntimeError, match="not a JAR"):
+        _install_client_test_mods(tmp_path, (test_mod,))

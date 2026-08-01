@@ -12,7 +12,7 @@ from .instance import Instance
 from .process import run
 from .properties import write_properties
 
-_SERVER_TEST_SUCCESS = "CommandTest was successful."
+_COMMAND_TEST_SUCCESS = "CommandTest was successful."
 
 
 @dataclass(frozen=True)
@@ -149,21 +149,37 @@ def _write_server_readiness_test(work: Path, timeout_seconds: int) -> Path:
     return target
 
 
-def _server_readiness_was_recorded(runtime_log: Path) -> bool:
-    return runtime_log.is_file() and _SERVER_TEST_SUCCESS in runtime_log.read_text(
+def _command_test_was_recorded(runtime_log: Path) -> bool:
+    return runtime_log.is_file() and _COMMAND_TEST_SUCCESS in runtime_log.read_text(
         encoding="utf-8", errors="replace"
     )
 
 
+def _install_client_test_mods(mods: Path, test_mods: tuple[Path, ...]) -> None:
+    for index, test_mod in enumerate(test_mods, start=1):
+        source = test_mod.resolve(strict=True)
+        if source.suffix.lower() != ".jar":
+            raise RuntimeError(f"Client test mod is not a JAR: {source}")
+        replace_file(source, mods / f"bertie-ci-client-test-{index}.jar")
+
+
 def run_client_probe(
-    context: ProbeContext, timeout_seconds: int, max_memory: str
+    context: ProbeContext,
+    timeout_seconds: int,
+    max_memory: str,
+    *,
+    minimum_game_tests: int = 0,
+    test_mods: tuple[Path, ...] = (),
 ) -> None:
+    if minimum_game_tests < 0:
+        raise RuntimeError("minimum_game_tests cannot be negative")
     _assert_compatible(context, "client")
     work = _reset_probe(context.work)
     game_dir = context.instance.game_dir
     mods = game_dir / "mods"
     mods.mkdir(parents=True, exist_ok=True)
     replace_file(context.tools.mc_runtime_test, mods / "bertie-ci-mc-runtime-test.jar")
+    _install_client_test_mods(mods, test_mods)
     minecraft = (context.cache / "minecraft").resolve()
     minecraft.mkdir(parents=True, exist_ok=True)
 
@@ -171,7 +187,10 @@ def run_client_probe(
         work / "HeadlessMC" / "config.properties",
         {
             "hmc.java.versions": context.tools.java,
-            "hmc.jvmargs": f"-Xms512M -Xmx{max_memory} -DMcRuntimeGameTestMinExpectedGameTests=0",
+            "hmc.jvmargs": (
+                f"-Xms512M -Xmx{max_memory} "
+                f"-DMcRuntimeGameTestMinExpectedGameTests={minimum_game_tests}"
+            ),
             "hmc.gamedir": game_dir,
             "hmc.mcdir": minecraft,
             "hmc.offline": "true",
@@ -196,7 +215,12 @@ def run_client_probe(
     _install_client(context, minecraft)
 
     loader = f"^neoforge-{context.instance.loader_version}$"
-    print("Launching client world-join probe", flush=True)
+    purpose = (
+        "world-join probe"
+        if minimum_game_tests == 0
+        else f"project client suite ({minimum_game_tests}+ GameTests required)"
+    )
+    print(f"Launching client {purpose}", flush=True)
     with virtual_display(context.tools, work / "xvfb.log") as environment:
         run(
             [*_java(context), "--command", "launch", loader, "-regex"],
@@ -205,18 +229,27 @@ def run_client_probe(
             log=work / "runtime.log",
             timeout_seconds=timeout_seconds,
         )
-    print(f"Client world-join probe passed. Logs: {work}", flush=True)
+    print(f"Client {purpose} passed. Logs: {work}", flush=True)
 
 
 def run_server_probe(
-    context: ProbeContext, timeout_seconds: int, max_memory: str
+    context: ProbeContext,
+    timeout_seconds: int,
+    max_memory: str,
+    *,
+    command_test: Path | None = None,
+    accept_post_success_exit: bool = True,
 ) -> None:
     _assert_compatible(context, "server")
     work = _reset_probe(context.work)
     game_dir = context.instance.game_dir
     minecraft = (context.cache / "minecraft").resolve()
     minecraft.mkdir(parents=True, exist_ok=True)
-    readiness_test = _write_server_readiness_test(work, timeout_seconds)
+    test = (
+        command_test.resolve(strict=True)
+        if command_test is not None
+        else _write_server_readiness_test(work, timeout_seconds)
+    )
 
     write_properties(
         work / "HeadlessMC" / "config.properties",
@@ -240,7 +273,7 @@ def run_server_probe(
             "hmc.server.test": "false",
             "hmc.server.test.cache": "true",
             "hmc.server.test.cache.use.mc.dir": "true",
-            "hmc.test.filename": readiness_test,
+            "hmc.test.filename": test,
             "hmc.test.leave.after": "false",
             "hmc.crash.report.watcher": "true",
             "hmc.loglevel": "INFO",
@@ -270,7 +303,8 @@ def run_server_probe(
     # readiness run. A large modpack can fill that preliminary process's output
     # pipe during mod discovery, so provision the same accepted state directly.
     _accept_minecraft_eula(game_dir)
-    print("Launching dedicated-server readiness probe", flush=True)
+    purpose = "readiness probe" if command_test is None else "project command suite"
+    print(f"Launching dedicated-server {purpose}", flush=True)
     runtime_log = work / "runtime.log"
     try:
         run(
@@ -285,10 +319,10 @@ def run_server_probe(
         # force-terminated, producing a non-zero child status. Readiness is the
         # probe contract, so only accept that status when HeadlessMC itself
         # recorded the successful test first.
-        if not _server_readiness_was_recorded(runtime_log):
+        if not accept_post_success_exit or not _command_test_was_recorded(runtime_log):
             raise
         print(
             "Readiness passed; ignoring the server's post-readiness exit status.",
             flush=True,
         )
-    print(f"Dedicated-server probe passed. Logs: {work}", flush=True)
+    print(f"Dedicated-server {purpose} passed. Logs: {work}", flush=True)

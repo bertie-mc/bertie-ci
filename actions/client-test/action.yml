@@ -1,0 +1,48 @@
+name: Run project client suite
+description: Run project-owned GameTests in a prepared Minecraft client
+
+inputs:
+  instance:
+    description: Prepared client instance descriptor
+    required: true
+  work-dir:
+    description: Directory for HeadlessMC state and logs
+    required: true
+  test-mod:
+    description: Test-only mod JAR containing the project GameTests
+    required: true
+  minimum-game-tests:
+    description: Minimum number of project GameTests that must be discovered
+    required: true
+  cache-dir:
+    description: Directory for downloaded Minecraft files
+    required: false
+    default: .bertie-ci/cache
+  timeout:
+    description: Timeout in seconds
+    required: false
+    default: "1500"
+  max-memory:
+    description: Maximum Java heap
+    required: false
+    default: 4G
+
+runs:
+  using: composite
+  steps:
+    - name: Run project client suite
+      shell: bash
+      env:
+        BERTIE_CI_INSTANCE: ${{ inputs.instance }}
+        BERTIE_CI_WORK_DIR: ${{ inputs.work-dir }}
+        BERTIE_CI_TEST_MOD: ${{ inputs.test-mod }}
+        BERTIE_CI_MINIMUM_GAME_TESTS: ${{ inputs.minimum-game-tests }}
+        BERTIE_CI_CACHE_DIR: ${{ inputs.cache-dir }}
+        BERTIE_CI_TIMEOUT: ${{ inputs.timeout }}
+        BERTIE_CI_MAX_MEMORY: ${{ inputs.max-memory }}
+      run: >-
+        bertie-ci client-test --instance "$BERTIE_CI_INSTANCE"
+        --test-mod "$BERTIE_CI_TEST_MOD"
+        --minimum-game-tests "$BERTIE_CI_MINIMUM_GAME_TESTS"
+        --work-dir "$BERTIE_CI_WORK_DIR" --cache-dir "$BERTIE_CI_CACHE_DIR"
+        --timeout "$BERTIE_CI_TIMEOUT" --max-memory "$BERTIE_CI_MAX_MEMORY"
