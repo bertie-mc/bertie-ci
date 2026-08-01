@@ -1,5 +1,9 @@
 # bertie-ci
 
+> [!IMPORTANT]
+> Development has moved to the [`bertie` monorepo](https://github.com/bertie-mc/bertie/tree/main/tools/bertie-ci).
+> This repository is retained read-only for historical tags, releases, and issues.
+
 Local-first Minecraft checks shared by the
 [`bertie-mc`](https://github.com/bertie-mc) projects.
 
