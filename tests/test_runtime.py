@@ -8,6 +8,7 @@ import pytest
 from bertie_ci.artifact import find_artifact
 from bertie_ci.runtime import (
     _accept_minecraft_eula,
+    _assert_required_log_markers,
     _command_test_was_recorded,
     _install_client_test_mods,
     _reset_probe,
@@ -175,3 +176,22 @@ def test_client_test_mod_rejects_non_jar(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="not a JAR"):
         _install_client_test_mods(tmp_path, (test_mod,))
+
+
+def test_required_client_log_markers_are_project_owned(tmp_path: Path) -> None:
+    runtime_log = tmp_path / "runtime.log"
+    runtime_log.write_text(
+        "client started\nSHORT_CIRCUIT_RENDER_LAYERS_OK\n", encoding="utf-8"
+    )
+
+    _assert_required_log_markers(
+        runtime_log, ("client started", "SHORT_CIRCUIT_RENDER_LAYERS_OK")
+    )
+
+
+def test_missing_client_log_marker_fails_closed(tmp_path: Path) -> None:
+    runtime_log = tmp_path / "runtime.log"
+    runtime_log.write_text("client started\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="MISSING_PROJECT_ASSERTION"):
+        _assert_required_log_markers(runtime_log, ("MISSING_PROJECT_ASSERTION",))

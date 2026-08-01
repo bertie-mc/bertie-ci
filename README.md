@@ -16,7 +16,7 @@ lines are the Linux path; on native Windows there is no usable Nix, so follow
 [`docs/windows.md`](docs/windows.md) instead.
 
 ```bash
-bertie_ci_package="$(nix build github:bertie-mc/bertie-ci/v3.7.0#bertie-ci \
+bertie_ci_package="$(nix build github:bertie-mc/bertie-ci/v3.7.1#bertie-ci \
   --no-link --print-out-paths)"
 export PATH="$bertie_ci_package/bin:$PATH"
 
@@ -46,15 +46,20 @@ produced it. They are reusable opt-in smoke presets:
   cleanly.
 
 Those presets are not a project's integration suite. A project that needs a production
-client test supplies a test-only mod containing its own GameTests:
+client test supplies a test-only mod containing its own assertions. The suite can use
+GameTests, an exact project-owned success marker, or both:
 
 ```bash
 bertie-ci client-test --instance .bertie-ci/client/instance.json \
-  --test-mod build/libs/example-client-tests.jar --minimum-game-tests 2
+  --test-mod build/test-libs/example-client-tests.jar \
+  --require-log EXAMPLE_CLIENT_ASSERTIONS_PASSED
 ```
 
-`mc-runtime-test` creates and joins the world, discovers the project's tests and fails
-unless the declared minimum runs successfully. A project-specific dedicated-server
+`mc-runtime-test` creates and joins the world. The test-only mod owns the assertions and
+emits its stable marker only after they pass; `bertie-ci` fails closed if the marker is
+absent. Structure-backed suites can additionally use `--minimum-game-tests`; their NBT
+fixtures belong under the project's test resource source set, never in the release JAR.
+A project-specific dedicated-server
 suite supplies a HeadlessMC command-test document instead:
 
 ```bash
@@ -110,21 +115,21 @@ runs `actions/setup` once; it installs Nix, builds the pinned package once, and 
 wrapped `bertie-ci` command to `PATH`. Operational actions call that command directly and
 do not reevaluate Nixpkgs.
 
-- `bertie-mc/bertie-ci/actions/setup@v3.7.0`
-- `bertie-mc/bertie-ci/actions/build@v3.7.0`
-- `bertie-mc/bertie-ci/actions/unit-test@v3.7.0`
-- `bertie-mc/bertie-ci/actions/gametest@v3.7.0`
-- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.7.0`
-- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.7.0`
-- `bertie-mc/bertie-ci/actions/client-test@v3.7.0`
-- `bertie-mc/bertie-ci/actions/server-test@v3.7.0`
-- `bertie-mc/bertie-ci/actions/client-probe@v3.7.0`
-- `bertie-mc/bertie-ci/actions/server-probe@v3.7.0`
-- `bertie-mc/bertie-ci/actions/pack-validate@v3.7.0`
-- `bertie-mc/bertie-ci/actions/pack-resolve@v3.7.0`
-- `bertie-mc/bertie-ci/actions/pack-export-client@v3.7.0`
-- `bertie-mc/bertie-ci/actions/pack-export-server@v3.7.0`
-- `bertie-mc/bertie-ci/actions/github-release@v3.7.0`
+- `bertie-mc/bertie-ci/actions/setup@v3.7.1`
+- `bertie-mc/bertie-ci/actions/build@v3.7.1`
+- `bertie-mc/bertie-ci/actions/unit-test@v3.7.1`
+- `bertie-mc/bertie-ci/actions/gametest@v3.7.1`
+- `bertie-mc/bertie-ci/actions/prepare-mod-instance@v3.7.1`
+- `bertie-mc/bertie-ci/actions/prepare-pack-instance@v3.7.1`
+- `bertie-mc/bertie-ci/actions/client-test@v3.7.1`
+- `bertie-mc/bertie-ci/actions/server-test@v3.7.1`
+- `bertie-mc/bertie-ci/actions/client-probe@v3.7.1`
+- `bertie-mc/bertie-ci/actions/server-probe@v3.7.1`
+- `bertie-mc/bertie-ci/actions/pack-validate@v3.7.1`
+- `bertie-mc/bertie-ci/actions/pack-resolve@v3.7.1`
+- `bertie-mc/bertie-ci/actions/pack-export-client@v3.7.1`
+- `bertie-mc/bertie-ci/actions/pack-export-server@v3.7.1`
+- `bertie-mc/bertie-ci/actions/github-release@v3.7.1`
 
 Each owns one operation. Except for the GitHub-only publisher, operational actions expect
 the setup action to have placed `bertie-ci` on `PATH`. The build and test actions do not
@@ -150,24 +155,24 @@ on:
 
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.7.0
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.7.1
 
   unit-test:
-    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.7.0
+    uses: bertie-mc/bertie-ci/.github/workflows/unit-test.yml@v3.7.1
 
   gametest:
-    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.7.0
+    uses: bertie-mc/bertie-ci/.github/workflows/gametest.yml@v3.7.1
 
   client:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.7.0
+    uses: bertie-mc/bertie-ci/.github/workflows/client.yml@v3.7.1
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
 
   server:
     needs: build
-    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.7.0
+    uses: bertie-mc/bertie-ci/.github/workflows/server.yml@v3.7.1
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
       fixture: forbidden-arcanus,irons-spells
@@ -182,13 +187,13 @@ composes `build-mod.yml` followed by `github-release.yml`; it has no second buil
 ```yaml
 jobs:
   build:
-    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.7.0
+    uses: bertie-mc/bertie-ci/.github/workflows/build-mod.yml@v3.7.1
 
   publish:
     needs: build
     permissions:
       contents: write
-    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.7.0
+    uses: bertie-mc/bertie-ci/.github/workflows/github-release.yml@v3.7.1
     with:
       artifact-name: ${{ needs.build.outputs.artifact-name }}
 ```
@@ -212,9 +217,10 @@ standalone command. A production runtime test is added only when it covers a dif
 risk, such as client rendering, side safety, optional-mod loading, or release-JAR
 packaging.
 
-`client-test` still uses `mc-runtime-test` because world creation, player join, GameTest
-execution, timeouts and clean exit are reusable mechanics. The assertions and test count
-come from the project. `client-probe` is merely the explicit zero-test world-join preset.
+`client-test` still uses `mc-runtime-test` because client launch, world creation, player
+join, timeouts and clean exit are reusable mechanics. Assertions stay in the project and
+can run at the lifecycle point appropriate to the behavior instead of being forced into
+a GameTest. `client-probe` is merely the explicit zero-assertion world-join preset.
 
 ## Pins
 

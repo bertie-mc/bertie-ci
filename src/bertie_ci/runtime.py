@@ -163,6 +163,20 @@ def _install_client_test_mods(mods: Path, test_mods: tuple[Path, ...]) -> None:
         replace_file(source, mods / f"bertie-ci-client-test-{index}.jar")
 
 
+def _assert_required_log_markers(
+    runtime_log: Path, required_log_markers: tuple[str, ...]
+) -> None:
+    if not required_log_markers:
+        return
+    text = runtime_log.read_text(encoding="utf-8", errors="replace")
+    missing = [marker for marker in required_log_markers if marker not in text]
+    if missing:
+        formatted = ", ".join(repr(marker) for marker in missing)
+        raise RuntimeError(
+            f"Client runtime log is missing required marker(s): {formatted}"
+        )
+
+
 def run_client_probe(
     context: ProbeContext,
     timeout_seconds: int,
@@ -170,6 +184,7 @@ def run_client_probe(
     *,
     minimum_game_tests: int = 0,
     test_mods: tuple[Path, ...] = (),
+    required_log_markers: tuple[str, ...] = (),
 ) -> None:
     if minimum_game_tests < 0:
         raise RuntimeError("minimum_game_tests cannot be negative")
@@ -215,20 +230,24 @@ def run_client_probe(
     _install_client(context, minecraft)
 
     loader = f"^neoforge-{context.instance.loader_version}$"
-    purpose = (
-        "world-join probe"
-        if minimum_game_tests == 0
-        else f"project client suite ({minimum_game_tests}+ GameTests required)"
-    )
+    if minimum_game_tests > 0:
+        assertions = f"{minimum_game_tests}+ GameTests"
+    elif required_log_markers:
+        assertions = f"{len(required_log_markers)} project assertion marker(s)"
+    else:
+        assertions = "world join"
+    purpose = f"client runtime ({assertions})"
+    runtime_log = work / "runtime.log"
     print(f"Launching client {purpose}", flush=True)
     with virtual_display(context.tools, work / "xvfb.log") as environment:
         run(
             [*_java(context), "--command", "launch", loader, "-regex"],
             cwd=work,
             env=environment,
-            log=work / "runtime.log",
+            log=runtime_log,
             timeout_seconds=timeout_seconds,
         )
+    _assert_required_log_markers(runtime_log, required_log_markers)
     print(f"Client {purpose} passed. Logs: {work}", flush=True)
 
 

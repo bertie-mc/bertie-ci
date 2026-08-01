@@ -50,10 +50,10 @@ def _memory(value: str) -> str:
     return value.upper()
 
 
-def _positive_int(value: str) -> int:
+def _nonnegative_int(value: str) -> int:
     parsed = int(value)
-    if parsed < 1:
-        raise argparse.ArgumentTypeError("value must be at least 1")
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("value cannot be negative")
     return parsed
 
 
@@ -141,13 +141,13 @@ def _parser() -> argparse.ArgumentParser:
 
     client_test = subcommands.add_parser(
         "client-test",
-        help="run project-owned GameTests in a prepared client instance",
+        help="run project-owned assertions in a prepared client instance",
     )
     _add_probe(client_test, 25 * 60, "4G")
     client_test.add_argument(
         "--minimum-game-tests",
-        type=_positive_int,
-        required=True,
+        type=_nonnegative_int,
+        default=0,
         metavar="COUNT",
         help="fail unless mc-runtime-test discovers at least this many GameTests",
     )
@@ -158,6 +158,13 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         metavar="JAR",
         help="optional test-only mod JAR to install; may be repeated",
+    )
+    client_test.add_argument(
+        "--require-log",
+        action="append",
+        default=[],
+        metavar="TEXT",
+        help="fail unless the client runtime log contains this exact text; may be repeated",
     )
 
     server_test = subcommands.add_parser(
@@ -282,14 +289,21 @@ def _run_probe(
 ) -> None:
     context = _probe_context(args.instance, args.work_dir, args.cache_dir)
     if side == "client":
+        minimum_game_tests = args.minimum_game_tests if project_owned else 0
+        required_log_markers = tuple(args.require_log) if project_owned else ()
+        if project_owned and minimum_game_tests == 0 and not required_log_markers:
+            raise RuntimeError(
+                "client-test requires --minimum-game-tests or --require-log"
+            )
         run_client_probe(
             context,
             args.timeout,
             args.max_memory,
-            minimum_game_tests=(args.minimum_game_tests if project_owned else 0),
+            minimum_game_tests=minimum_game_tests,
             test_mods=(
                 tuple(path.resolve() for path in args.test_mod) if project_owned else ()
             ),
+            required_log_markers=required_log_markers,
         )
     else:
         run_server_probe(
